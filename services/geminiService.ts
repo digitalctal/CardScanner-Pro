@@ -6,10 +6,14 @@ export const extractContactInfo = async (base64Image: string): Promise<ScannedDa
   // and to ensure we catch initialization errors gracefully
   let ai;
   try {
-    ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-  } catch (error) {
+    const apiKey = process.env.API_KEY;
+    if (!apiKey || apiKey.length < 10) {
+      throw new Error("API_KEY is missing or invalid. Check your environment variables.");
+    }
+    ai = new GoogleGenAI({ apiKey: apiKey });
+  } catch (error: any) {
     console.error("Gemini Initialization Error:", error);
-    throw new Error("API configuration issue. Please check your API Key.");
+    throw new Error(error.message || "API configuration issue.");
   }
 
   // Remove data URL prefix if present
@@ -55,6 +59,6 @@ export const extractContactInfo = async (base64Image: string): Promise<ScannedDa
     return JSON.parse(text) as ScannedData;
   } catch (error) {
     console.error("Gemini Extraction Error:", error);
-    throw new Error("Failed to scan card. Please try again.");
+    throw new Error("Failed to scan card. Please try again or use manual entry.");
   }
 };

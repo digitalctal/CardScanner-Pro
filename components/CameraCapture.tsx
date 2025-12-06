@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
-import { X, RefreshCw, Upload, AlertCircle, Loader2 } from 'lucide-react';
+import { X, RefreshCw, Upload, AlertCircle, Loader2, Camera } from 'lucide-react';
 
 interface CameraCaptureProps {
   onCapture: (imageData: string) => void;
@@ -10,37 +10,44 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onCancel }) =>
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const mountedRef = useRef<boolean>(true);
   
   const [error, setError] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isReady, setIsReady] = useState<boolean>(false);
 
-  const stopCamera = () => {
+  const stopCamera = useCallback(() => {
     if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current.getTracks().forEach(track => {
+        track.stop();
+        track.enabled = false;
+      });
       streamRef.current = null;
     }
     if (videoRef.current) {
       videoRef.current.srcObject = null;
     }
-  };
+    setIsReady(false);
+  }, []);
 
   const startCamera = useCallback(async () => {
+    if (!mountedRef.current) return;
+    
     stopCamera();
     setError('');
     setIsLoading(true);
     setIsReady(false);
 
     // 1. Check for Secure Context (HTTPS)
-    if (!window.isSecureContext) {
-      setError("Camera access requires a secure HTTPS connection.");
+    if (window.location.hostname !== 'localhost' && !window.isSecureContext) {
+      setError("Camera requires HTTPS. Please deploy to Vercel/Netlify.");
       setIsLoading(false);
       return;
     }
 
     // 2. Check Browser Support
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      setError("Camera API is not supported in this browser.");
+      setError("Camera API not supported.");
       setIsLoading(false);
       return;
     }
@@ -48,82 +55,92 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onCancel }) =>
     try {
       let stream: MediaStream;
 
-      // 3. Attempt to get Back Camera (Ideal)
+      // 3. Attempt simple environment camera (Android compatible)
+      // We removed specific width/height constraints as they cause OverconstrainedError on many Androids
       try {
         stream = await navigator.mediaDevices.getUserMedia({
           video: { 
-            facingMode: 'environment',
-            width: { ideal: 1920 },
-            height: { ideal: 1080 } 
+            facingMode: 'environment'
           },
           audio: false
         });
       } catch (err) {
-        console.warn("Back camera constraint failed, falling back to any video device...", err);
-        // 4. Fallback: Get ANY video camera
+        console.warn("Environment camera failed, falling back...", err);
+        // 4. Fallback: Get ANY video device
         stream = await navigator.mediaDevices.getUserMedia({ 
           video: true,
           audio: false
         });
       }
       
+      if (!mountedRef.current) {
+        // Component unmounted while we were asking for camera
+        stream.getTracks().forEach(t => t.stop());
+        return;
+      }
+
       streamRef.current = stream;
       
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        
-        // 5. Explicitly play to ensure Android renders the stream
-        // use onloadedmetadata to ensure we don't play too early
+        // Wait for video to be ready
         videoRef.current.onloadedmetadata = async () => {
+          if (!mountedRef.current) return;
           try {
             await videoRef.current?.play();
             setIsReady(true);
             setIsLoading(false);
           } catch (playError) {
-            console.error("Video play failed:", playError);
-            // Even if play() fails (rare with muted), we might still be okay
-            setIsReady(true); 
+            console.error("Play failed:", playError);
+            // Some browsers require user interaction to play video
+            setError("Tap 'Retake' to start camera");
             setIsLoading(false);
           }
         };
       }
     } catch (err: any) {
-      console.error("Camera Access Error:", err);
+      console.error("Camera Error:", err);
+      if (!mountedRef.current) return;
       setIsLoading(false);
       
       if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-        setError("Camera permission denied. Please reset permissions in your browser settings.");
+        setError("Camera permission denied.");
       } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
-        setError("No camera device found on this device.");
+        setError("No camera found.");
       } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
-        setError("Camera is in use by another application.");
+        setError("Camera in use by another app.");
+      } else if (err.name === 'OverconstrainedError') {
+        setError("Camera resolution not supported.");
       } else {
-        setError("Unable to access camera. Please try uploading an image.");
+        setError("Could not start camera.");
       }
     }
-  }, []);
+  }, [stopCamera]);
 
-  // Initial load
+  // Handle Lifecycle
   useEffect(() => {
+    mountedRef.current = true;
     startCamera();
+
     return () => {
+      mountedRef.current = false;
       stopCamera();
     };
-  }, [startCamera]);
+  }, [startCamera, stopCamera]);
 
   const handleCapture = () => {
     if (videoRef.current && canvasRef.current && isReady) {
       const video = videoRef.current;
       const canvas = canvasRef.current;
       
+      // Match canvas size to video actual size
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
       
       const ctx = canvas.getContext('2d');
       if (ctx) {
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        // High quality JPEG
-        const imageData = canvas.toDataURL('image/jpeg', 0.9);
+        const imageData = canvas.toDataURL('image/jpeg', 0.85);
         stopCamera();
         onCapture(imageData);
       }
@@ -163,7 +180,7 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onCancel }) =>
         {isLoading && (
           <div className="absolute inset-0 flex flex-col items-center justify-center text-white/70 z-20 bg-gray-900">
             <Loader2 size={40} className="animate-spin mb-4 text-blue-500" />
-            <p>Starting Camera...</p>
+            <p>Initializing Camera...</p>
           </div>
         )}
 
@@ -174,19 +191,20 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onCancel }) =>
               <AlertCircle size={32} className="text-red-500" />
             </div>
             <h3 className="text-white font-semibold text-lg mb-2">Camera Issue</h3>
-            <p className="text-gray-400 mb-8 max-w-xs">{error}</p>
+            <p className="text-gray-400 mb-8 max-w-xs text-sm">{error}</p>
             
-            <label className="w-full max-w-xs bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-xl cursor-pointer flex items-center justify-center gap-2 transition-colors">
+            <label className="w-full max-w-xs bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-xl cursor-pointer flex items-center justify-center gap-2 transition-colors mb-3">
               <Upload size={20} />
-              Upload Image Instead
+              Upload Photo Instead
               <input type="file" accept="image/*" className="hidden" onChange={handleFileUpload} />
             </label>
-            
+
             <button 
               onClick={startCamera}
-              className="mt-4 text-sm text-gray-500 hover:text-white underline"
+              className="w-full max-w-xs bg-gray-800 hover:bg-gray-700 text-white font-medium py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-colors border border-gray-700"
             >
-              Try Again
+              <Camera size={20} />
+              Try Starting Camera Again
             </button>
           </div>
         ) : (
@@ -196,7 +214,7 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onCancel }) =>
               ref={videoRef} 
               autoPlay 
               playsInline 
-              muted // Muted is required for autoplay on many mobile browsers
+              muted // Critical for mobile auto-play
               className={`w-full h-full object-cover transition-opacity duration-500 ${isReady ? 'opacity-100' : 'opacity-0'}`}
             />
             
@@ -209,15 +227,9 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onCancel }) =>
                   <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-blue-500 -mt-0.5 -mr-0.5 rounded-tr-sm"></div>
                   <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-blue-500 -mb-0.5 -ml-0.5 rounded-bl-sm"></div>
                   <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-blue-500 -mb-0.5 -mr-0.5 rounded-br-sm"></div>
-                  
-                  {/* Center Crosshair (Subtle) */}
-                  <div className="absolute top-1/2 left-1/2 w-4 h-4 -ml-2 -mt-2 opacity-50">
-                    <div className="absolute top-1/2 left-0 w-full h-px bg-white"></div>
-                    <div className="absolute left-1/2 top-0 h-full w-px bg-white"></div>
-                  </div>
                 </div>
                 <div className="absolute bottom-24 text-white/90 text-sm font-medium bg-black/50 px-4 py-2 rounded-full backdrop-blur-sm shadow-sm border border-white/10">
-                  Hold steady & align card
+                  Align card within frame
                 </div>
               </div>
             )}
