@@ -1,0 +1,7 @@
+{
+  "name": "CardScanner Pro",
+  "description": "A mobile-first web application to scan business cards, extract details using AI, and manage contacts locally.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
