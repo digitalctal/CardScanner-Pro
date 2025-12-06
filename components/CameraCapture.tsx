@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
-import { X, RefreshCw, Upload, AlertCircle, Loader2, Camera } from 'lucide-react';
+import { X, RefreshCw, Upload, AlertCircle, Loader2, Camera, SwitchCamera } from 'lucide-react';
 
 interface CameraCaptureProps {
   onCapture: (imageData: string) => void;
@@ -15,6 +15,7 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onCancel }) =>
   const [error, setError] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isReady, setIsReady] = useState<boolean>(false);
+  const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
 
   const stopCamera = useCallback(() => {
     if (streamRef.current) {
@@ -38,43 +39,41 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onCancel }) =>
     setIsLoading(true);
     setIsReady(false);
 
-    // 1. Check for Secure Context (HTTPS)
+    // 1. Check for Secure Context
     if (window.location.hostname !== 'localhost' && !window.isSecureContext) {
-      setError("Camera requires HTTPS. Please deploy to Vercel/Netlify.");
+      setError("App requires HTTPS. Please check your URL.");
       setIsLoading(false);
       return;
     }
 
     // 2. Check Browser Support
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      setError("Camera API not supported.");
+      setError("Camera API not supported on this browser.");
       setIsLoading(false);
       return;
     }
 
     try {
-      let stream: MediaStream;
+      // 3. Request Camera - Minimal constraints for maximum Android compatibility
+      const constraints = {
+        video: { 
+          facingMode: facingMode
+          // explicitly removed width/height/aspectRatio constraints to prevent crashes on budget devices
+        },
+        audio: false
+      };
 
-      // 3. Attempt simple environment camera (Android compatible)
-      // We removed specific width/height constraints as they cause OverconstrainedError on many Androids
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: { 
-            facingMode: 'environment'
-          },
-          audio: false
-        });
-      } catch (err) {
-        console.warn("Environment camera failed, falling back...", err);
-        // 4. Fallback: Get ANY video device
-        stream = await navigator.mediaDevices.getUserMedia({ 
-          video: true,
-          audio: false
-        });
-      }
+      let stream: MediaStream;
       
+      try {
+        stream = await navigator.mediaDevices.getUserMedia(constraints);
+      } catch (err: any) {
+        console.warn(`Failed with facingMode: ${facingMode}, trying fallback...`, err);
+        // Absolute fallback: just give me ANY video
+        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      }
+
       if (!mountedRef.current) {
-        // Component unmounted while we were asking for camera
         stream.getTracks().forEach(t => t.stop());
         return;
       }
@@ -83,7 +82,7 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onCancel }) =>
       
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        // Wait for video to be ready
+        // iOS/Android often require explicit play
         videoRef.current.onloadedmetadata = async () => {
           if (!mountedRef.current) return;
           try {
@@ -92,8 +91,8 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onCancel }) =>
             setIsLoading(false);
           } catch (playError) {
             console.error("Play failed:", playError);
-            // Some browsers require user interaction to play video
-            setError("Tap 'Retake' to start camera");
+            // Some browsers block autoplay until user interaction
+            setError("Tap 'Retake' to enable camera access");
             setIsLoading(false);
           }
         };
@@ -104,36 +103,57 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onCancel }) =>
       setIsLoading(false);
       
       if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-        setError("Camera permission denied.");
+        setError("Camera permission denied. Please check browser settings.");
       } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
         setError("No camera found.");
       } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
-        setError("Camera in use by another app.");
-      } else if (err.name === 'OverconstrainedError') {
-        setError("Camera resolution not supported.");
+        setError("Camera in use. Close other apps.");
       } else {
-        setError("Could not start camera.");
+        setError("Camera failed. Please try uploading.");
       }
     }
-  }, [stopCamera]);
+  }, [facingMode, stopCamera]);
 
-  // Handle Lifecycle
+  // Handle Visibility Change (Tab backgrounding)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        stopCamera();
+      } else {
+        // Slight delay to allow browser to regain focus
+        setTimeout(() => {
+            if (mountedRef.current) startCamera();
+        }, 500);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [startCamera, stopCamera]);
+
+  // Initial Mount
   useEffect(() => {
     mountedRef.current = true;
     startCamera();
-
     return () => {
       mountedRef.current = false;
       stopCamera();
     };
   }, [startCamera, stopCamera]);
 
+  const toggleCamera = () => {
+    setFacingMode(prev => prev === 'environment' ? 'user' : 'environment');
+  };
+
   const handleCapture = () => {
     if (videoRef.current && canvasRef.current && isReady) {
       const video = videoRef.current;
       const canvas = canvasRef.current;
       
-      // Match canvas size to video actual size
+      if (video.videoWidth === 0 || video.videoHeight === 0) return; 
+
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
       
@@ -167,10 +187,13 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onCancel }) =>
         <button onClick={onCancel} className="text-white p-2 rounded-full bg-white/10 backdrop-blur-md border border-white/10 active:bg-white/20">
           <X size={24} />
         </button>
-        <span className="text-white/90 font-medium text-sm tracking-wide px-3 py-1 rounded-full bg-black/40 backdrop-blur-sm border border-white/10">
-          Scan Business Card
-        </span>
-        <div className="w-10"></div>
+        <button 
+          onClick={toggleCamera} 
+          className="text-white flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/40 backdrop-blur-sm border border-white/10 active:bg-white/20"
+        >
+          <SwitchCamera size={16} />
+          <span className="text-xs font-medium">Flip</span>
+        </button>
       </div>
 
       {/* Main Viewfinder Area */}
@@ -195,7 +218,7 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onCancel }) =>
             
             <label className="w-full max-w-xs bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-xl cursor-pointer flex items-center justify-center gap-2 transition-colors mb-3">
               <Upload size={20} />
-              Upload Photo Instead
+              Upload Photo
               <input type="file" accept="image/*" className="hidden" onChange={handleFileUpload} />
             </label>
 
@@ -204,7 +227,7 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onCancel }) =>
               className="w-full max-w-xs bg-gray-800 hover:bg-gray-700 text-white font-medium py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-colors border border-gray-700"
             >
               <Camera size={20} />
-              Try Starting Camera Again
+              Retry Camera
             </button>
           </div>
         ) : (
