@@ -1,6 +1,6 @@
-import React, { useState, useMemo } from 'react';
-import { Search, User, ChevronRight, Phone, Mail, Trash2 } from 'lucide-react';
-import { Contact } from '../types';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Search, User, ChevronRight, Phone, Mail, Trash2, Download } from 'lucide-react';
+import { Contact, BeforeInstallPromptEvent } from '../types';
 
 interface ContactListProps {
   contacts: Contact[];
@@ -10,6 +10,26 @@ interface ContactListProps {
 
 const ContactList: React.FC<ContactListProps> = ({ contacts, onSelect, onDelete }) => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+
+  // PWA Install Logic
+  useEffect(() => {
+    const handler = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e as BeforeInstallPromptEvent);
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  const handleInstallClick = async () => {
+    if (!deferredPrompt) return;
+    await deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      setDeferredPrompt(null);
+    }
+  };
 
   const filteredContacts = useMemo(() => {
     return contacts.filter(c => 
@@ -22,7 +42,19 @@ const ContactList: React.FC<ContactListProps> = ({ contacts, onSelect, onDelete 
   return (
     <div className="flex flex-col h-full bg-gray-50">
       <div className="bg-white p-4 shadow-sm sticky top-0 z-10">
-        <h1 className="text-2xl font-bold text-gray-800 mb-4">My Contacts</h1>
+        <div className="flex justify-between items-center mb-4">
+          <h1 className="text-2xl font-bold text-gray-800">My Contacts</h1>
+          {deferredPrompt && (
+            <button 
+              onClick={handleInstallClick}
+              className="text-xs bg-blue-50 text-blue-600 px-3 py-1.5 rounded-full font-semibold flex items-center gap-1.5 active:bg-blue-100 transition-colors"
+            >
+              <Download size={14} />
+              Install App
+            </button>
+          )}
+        </div>
+        
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
           <input 

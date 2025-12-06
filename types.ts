@@ -19,3 +19,13 @@ export enum AppView {
   EDIT = 'EDIT',
   DETAILS = 'DETAILS'
 }
+
+// PWA Install Prompt Type definition
+export interface BeforeInstallPromptEvent extends Event {
+  readonly platforms: string[];
+  readonly userChoice: Promise<{
+    outcome: 'accepted' | 'dismissed';
+    platform: string;
+  }>;
+  prompt(): Promise<void>;
+}
