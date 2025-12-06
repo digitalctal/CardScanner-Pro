@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Search, User, ChevronRight, Phone, Mail, Trash2, Download, UserPlus, MapPin } from 'lucide-react';
+import { Search, User, ChevronRight, Phone, Mail, Trash2, Download, UserPlus, MapPin, MessageCircle, Share2 } from 'lucide-react';
 import { Contact, BeforeInstallPromptEvent } from '../types';
 
 interface ContactListProps {
@@ -28,6 +28,34 @@ const ContactList: React.FC<ContactListProps> = ({ contacts, onSelect, onDelete 
     const { outcome } = await deferredPrompt.userChoice;
     if (outcome === 'accepted') {
       setDeferredPrompt(null);
+    }
+  };
+
+  const handleWhatsApp = (e: React.MouseEvent, phone: string) => {
+    e.stopPropagation();
+    // Remove all non-numeric characters for the API
+    const cleanNumber = phone.replace(/[^\d+]/g, '');
+    window.open(`https://wa.me/${cleanNumber}`, '_blank');
+  };
+
+  const handleShare = async (e: React.MouseEvent, contact: Contact) => {
+    e.stopPropagation();
+    const shareData = {
+      title: contact.name,
+      text: `Contact Info:\n${contact.name}\n${contact.jobTitle} at ${contact.company}\nPhone: ${contact.phone}\nEmail: ${contact.email}`,
+      url: window.location.href
+    };
+
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+      } else {
+        // Fallback for desktop/unsupported browsers
+        await navigator.clipboard.writeText(shareData.text);
+        alert('Contact details copied to clipboard!');
+      }
+    } catch (err) {
+      console.error('Error sharing:', err);
     }
   };
 
@@ -115,50 +143,78 @@ END:VCARD`;
                     <ChevronRight size={20} className="text-gray-300" />
                  </div>
 
-                 {/* Quick Actions */}
-                 <div className="flex items-center gap-3 mt-4 pt-3 border-t border-gray-50">
+                 {/* Quick Actions - Wrapped to handle multiple buttons */}
+                 <div className="flex flex-wrap items-center gap-2 mt-4 pt-3 border-t border-gray-50">
+                    {/* Primary Actions (Expanded) */}
                     {contact.phone && (
                       <a 
                         href={`tel:${contact.phone}`} 
                         onClick={e => e.stopPropagation()} 
-                        className="flex-1 py-2 bg-green-50 text-green-700 rounded-lg flex items-center justify-center gap-2 text-sm font-medium hover:bg-green-100 transition-colors"
+                        className="flex-1 py-2 bg-green-50 text-green-700 rounded-lg flex items-center justify-center gap-2 text-sm font-medium hover:bg-green-100 transition-colors min-w-[80px]"
                       >
-                         <Phone size={14} /> Call
+                         <Phone size={16} /> Call
                       </a>
                     )}
+                    
                     {contact.email && (
                       <a 
                         href={`mailto:${contact.email}`} 
                         onClick={e => e.stopPropagation()} 
-                        className="flex-1 py-2 bg-blue-50 text-blue-700 rounded-lg flex items-center justify-center gap-2 text-sm font-medium hover:bg-blue-100 transition-colors"
+                        className="flex-1 py-2 bg-blue-50 text-blue-700 rounded-lg flex items-center justify-center gap-2 text-sm font-medium hover:bg-blue-100 transition-colors min-w-[80px]"
                       >
-                         <Mail size={14} /> Email
+                         <Mail size={16} /> Email
                       </a>
                     )}
-                    {contact.address && (
-                       <a 
-                         href={`https://maps.google.com/?q=${encodeURIComponent(contact.address)}`}
-                         target="_blank"
-                         rel="noopener noreferrer"
-                         onClick={e => e.stopPropagation()} 
-                         className="p-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200"
-                       >
-                          <MapPin size={16} />
-                       </a>
-                    )}
-                    <button 
-                      onClick={(e) => handleExportVcf(e, contact)}
-                      className="p-2 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100"
-                      title="Save to Phone Contacts"
-                    >
-                      <UserPlus size={16} />
-                    </button>
-                    <button 
-                      onClick={(e) => { e.stopPropagation(); onDelete(contact.id); }}
-                      className="p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg ml-auto"
-                    >
-                      <Trash2 size={16} />
-                    </button>
+
+                    {/* Secondary Icon Actions */}
+                    <div className="flex items-center gap-2 ml-auto">
+                      {contact.phone && (
+                        <button
+                          onClick={(e) => handleWhatsApp(e, contact.phone)}
+                          className="p-2 bg-green-100 text-green-600 rounded-lg hover:bg-green-200"
+                          title="WhatsApp"
+                        >
+                          <MessageCircle size={18} />
+                        </button>
+                      )}
+
+                      {contact.address && (
+                         <a 
+                           href={`https://maps.google.com/?q=${encodeURIComponent(contact.address)}`}
+                           target="_blank"
+                           rel="noopener noreferrer"
+                           onClick={e => e.stopPropagation()} 
+                           className="p-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200"
+                           title="Open Map"
+                         >
+                            <MapPin size={18} />
+                         </a>
+                      )}
+
+                      <button 
+                        onClick={(e) => handleShare(e, contact)}
+                        className="p-2 bg-orange-50 text-orange-600 rounded-lg hover:bg-orange-100"
+                        title="Share Contact"
+                      >
+                        <Share2 size={18} />
+                      </button>
+
+                      <button 
+                        onClick={(e) => handleExportVcf(e, contact)}
+                        className="p-2 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100"
+                        title="Save to Phone Contacts"
+                      >
+                        <UserPlus size={18} />
+                      </button>
+                      
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); onDelete(contact.id); }}
+                        className="p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg"
+                        title="Delete"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    </div>
                  </div>
               </div>
             ))}
