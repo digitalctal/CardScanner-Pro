@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Search, User, ChevronRight, Phone, Mail, Trash2, Download } from 'lucide-react';
+import { Search, User, ChevronRight, Phone, Mail, Trash2, Download, UserPlus, MapPin } from 'lucide-react';
 import { Contact, BeforeInstallPromptEvent } from '../types';
 
 interface ContactListProps {
@@ -31,6 +31,32 @@ const ContactList: React.FC<ContactListProps> = ({ contacts, onSelect, onDelete 
     }
   };
 
+  const handleExportVcf = (e: React.MouseEvent, contact: Contact) => {
+    e.stopPropagation();
+    
+    // Create VCF string
+    const vcard = `BEGIN:VCARD
+VERSION:3.0
+FN:${contact.name}
+ORG:${contact.company}
+TITLE:${contact.jobTitle}
+TEL;TYPE=CELL:${contact.phone}
+EMAIL:${contact.email}
+URL:${contact.website}
+ADR;TYPE=WORK:;;${contact.address};;;;
+NOTE:${contact.notes}
+END:VCARD`;
+
+    const blob = new Blob([vcard], { type: 'text/vcard' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${contact.name.replace(/\s+/g, '_')}.vcf`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const filteredContacts = useMemo(() => {
     return contacts.filter(c => 
       c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -43,14 +69,14 @@ const ContactList: React.FC<ContactListProps> = ({ contacts, onSelect, onDelete 
     <div className="flex flex-col h-full bg-gray-50">
       <div className="bg-white p-4 shadow-sm sticky top-0 z-10">
         <div className="flex justify-between items-center mb-4">
-          <h1 className="text-2xl font-bold text-gray-800">My Contacts</h1>
+          <h1 className="text-2xl font-bold text-gray-800">Contacts</h1>
           {deferredPrompt && (
             <button 
               onClick={handleInstallClick}
               className="text-xs bg-blue-50 text-blue-600 px-3 py-1.5 rounded-full font-semibold flex items-center gap-1.5 active:bg-blue-100 transition-colors"
             >
               <Download size={14} />
-              Install App
+              Install
             </button>
           )}
         </div>
@@ -78,40 +104,67 @@ const ContactList: React.FC<ContactListProps> = ({ contacts, onSelect, onDelete 
             {filteredContacts.map(contact => (
               <div 
                 key={contact.id} 
-                className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 active:bg-gray-50 transition-colors flex items-center justify-between group"
+                className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 active:bg-gray-50 transition-colors group"
+                onClick={() => onSelect(contact)}
               >
-                 <div className="flex-1 cursor-pointer" onClick={() => onSelect(contact)}>
-                    <h3 className="font-semibold text-gray-800">{contact.name}</h3>
-                    <p className="text-sm text-gray-500">{contact.jobTitle} {contact.company && `• ${contact.company}`}</p>
-                    
-                    <div className="flex items-center gap-3 mt-2">
-                       {contact.phone && (
-                         <a href={`tel:${contact.phone}`} onClick={e => e.stopPropagation()} className="p-1.5 bg-green-50 text-green-600 rounded-full hover:bg-green-100 transition-colors">
-                            <Phone size={14} />
-                         </a>
-                       )}
-                       {contact.email && (
-                         <a href={`mailto:${contact.email}`} onClick={e => e.stopPropagation()} className="p-1.5 bg-blue-50 text-blue-600 rounded-full hover:bg-blue-100 transition-colors">
-                            <Mail size={14} />
-                         </a>
-                       )}
+                 <div className="flex justify-between items-start">
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-gray-800 text-lg">{contact.name}</h3>
+                      <p className="text-sm text-gray-500 font-medium">{contact.jobTitle} {contact.company && `• ${contact.company}`}</p>
                     </div>
+                    <ChevronRight size={20} className="text-gray-300" />
                  </div>
-                 
-                 <div className="flex items-center gap-2">
+
+                 {/* Quick Actions */}
+                 <div className="flex items-center gap-3 mt-4 pt-3 border-t border-gray-50">
+                    {contact.phone && (
+                      <a 
+                        href={`tel:${contact.phone}`} 
+                        onClick={e => e.stopPropagation()} 
+                        className="flex-1 py-2 bg-green-50 text-green-700 rounded-lg flex items-center justify-center gap-2 text-sm font-medium hover:bg-green-100 transition-colors"
+                      >
+                         <Phone size={14} /> Call
+                      </a>
+                    )}
+                    {contact.email && (
+                      <a 
+                        href={`mailto:${contact.email}`} 
+                        onClick={e => e.stopPropagation()} 
+                        className="flex-1 py-2 bg-blue-50 text-blue-700 rounded-lg flex items-center justify-center gap-2 text-sm font-medium hover:bg-blue-100 transition-colors"
+                      >
+                         <Mail size={14} /> Email
+                      </a>
+                    )}
+                    {contact.address && (
+                       <a 
+                         href={`https://maps.google.com/?q=${encodeURIComponent(contact.address)}`}
+                         target="_blank"
+                         rel="noopener noreferrer"
+                         onClick={e => e.stopPropagation()} 
+                         className="p-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200"
+                       >
+                          <MapPin size={16} />
+                       </a>
+                    )}
+                    <button 
+                      onClick={(e) => handleExportVcf(e, contact)}
+                      className="p-2 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100"
+                      title="Save to Phone Contacts"
+                    >
+                      <UserPlus size={16} />
+                    </button>
                     <button 
                       onClick={(e) => { e.stopPropagation(); onDelete(contact.id); }}
-                      className="p-2 text-gray-300 hover:text-red-500 transition-colors"
+                      className="p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg ml-auto"
                     >
-                      <Trash2 size={18} />
+                      <Trash2 size={16} />
                     </button>
-                    <ChevronRight size={20} className="text-gray-300" />
                  </div>
               </div>
             ))}
           </div>
         )}
-        <div className="h-20"></div>
+        <div className="h-20"></div> {/* Spacer for bottom nav */}
       </div>
     </div>
   );

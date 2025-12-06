@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Camera, Plus } from 'lucide-react';
+import { Camera, Plus, Users, Sparkles, ScanLine } from 'lucide-react';
 import { AppView, Contact } from './types';
 import CameraCapture from './components/CameraCapture';
 import ContactForm from './components/ContactForm';
 import ContactList from './components/ContactList';
+import AiAssistant from './components/AiAssistant';
 import { extractContactInfo } from './services/geminiService';
 import { getContacts, saveContact, deleteContact } from './services/storageService';
 
@@ -69,62 +70,98 @@ const App: React.FC = () => {
     setView(AppView.EDIT);
   };
 
+  // Views that should show the bottom navigation
+  const showBottomNav = view === AppView.LIST || view === AppView.AI_ASSISTANT;
+
   return (
     // Use 100dvh for proper mobile height including browser bars
     <div className="h-[100dvh] w-full max-w-md mx-auto bg-white overflow-hidden relative shadow-2xl flex flex-col">
       
+      {/* Main Content Area */}
+      <div className="flex-1 overflow-hidden relative">
+        {view === AppView.LIST && (
+            <ContactList 
+              contacts={contacts} 
+              onSelect={handleSelectContact} 
+              onDelete={handleDeleteContact}
+            />
+        )}
+
+        {view === AppView.AI_ASSISTANT && (
+          <AiAssistant contacts={contacts} />
+        )}
+
+        {view === AppView.CAMERA && (
+          <CameraCapture 
+            onCapture={handleCapture} 
+            onCancel={() => setView(AppView.LIST)} 
+          />
+        )}
+
+        {view === AppView.EDIT && (
+          isProcessing ? (
+            <div className="h-full flex flex-col items-center justify-center bg-gray-50 space-y-4">
+               <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
+               <p className="text-gray-500 font-medium animate-pulse">Analyzing Business Card...</p>
+               <p className="text-xs text-gray-400">Powered by Gemini AI</p>
+            </div>
+          ) : (
+            <ContactForm 
+              initialData={currentContact} 
+              scannedImage={scannedImage}
+              onSave={handleSaveContact}
+              onCancel={() => {
+                setView(AppView.LIST);
+                setScannedImage(undefined);
+                setCurrentContact(undefined);
+              }}
+            />
+          )
+        )}
+      </div>
+
+      {/* Floating Add Manual Button (Only on List View) */}
       {view === AppView.LIST && (
-        <>
-          <ContactList 
-            contacts={contacts} 
-            onSelect={handleSelectContact} 
-            onDelete={handleDeleteContact}
-          />
-          {/* Floating Action Button */}
-          <div className="absolute bottom-8 right-6 flex flex-col gap-4">
-             <button 
-              onClick={handleAddNewManual}
-              className="w-12 h-12 rounded-full bg-gray-200 text-gray-700 shadow-lg flex items-center justify-center hover:bg-gray-300 transition-colors"
-              title="Add Manually"
-            >
-              <Plus size={24} />
-            </button>
+         <button 
+          onClick={handleAddNewManual}
+          className="absolute bottom-24 right-6 w-12 h-12 rounded-full bg-white text-blue-600 shadow-lg border border-blue-100 flex items-center justify-center hover:bg-gray-50 transition-colors z-20"
+          title="Add Manually"
+        >
+          <Plus size={24} />
+        </button>
+      )}
+
+      {/* Bottom Navigation Bar */}
+      {showBottomNav && (
+        <div className="bg-white border-t border-gray-200 pb-safe-bottom z-30">
+          <div className="flex justify-around items-center h-16">
             <button 
-              onClick={() => setView(AppView.CAMERA)}
-              className="w-16 h-16 rounded-full bg-blue-600 text-white shadow-xl flex items-center justify-center hover:bg-blue-700 active:scale-95 transition-all"
+              onClick={() => setView(AppView.LIST)}
+              className={`flex flex-col items-center gap-1 w-16 ${view === AppView.LIST ? 'text-blue-600' : 'text-gray-400'}`}
             >
-              <Camera size={28} />
+              <Users size={24} strokeWidth={view === AppView.LIST ? 2.5 : 2} />
+              <span className="text-[10px] font-medium">Contacts</span>
+            </button>
+
+            {/* Center Scan Button */}
+            <div className="relative -top-5">
+              <button 
+                onClick={() => setView(AppView.CAMERA)}
+                className="w-16 h-16 rounded-full bg-blue-600 text-white shadow-lg shadow-blue-600/30 flex items-center justify-center hover:scale-105 transition-transform"
+              >
+                <ScanLine size={28} />
+              </button>
+            </div>
+
+            <button 
+              onClick={() => setView(AppView.AI_ASSISTANT)}
+              className={`flex flex-col items-center gap-1 w-16 ${view === AppView.AI_ASSISTANT ? 'text-purple-600' : 'text-gray-400'}`}
+            >
+              <Sparkles size={24} strokeWidth={view === AppView.AI_ASSISTANT ? 2.5 : 2} />
+              <span className="text-[10px] font-medium">Ask AI</span>
             </button>
           </div>
-        </>
-      )}
-
-      {view === AppView.CAMERA && (
-        <CameraCapture 
-          onCapture={handleCapture} 
-          onCancel={() => setView(AppView.LIST)} 
-        />
-      )}
-
-      {view === AppView.EDIT && (
-        isProcessing ? (
-          <div className="h-full flex flex-col items-center justify-center bg-gray-50 space-y-4">
-             <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
-             <p className="text-gray-500 font-medium animate-pulse">Analyzing Business Card...</p>
-             <p className="text-xs text-gray-400">Powered by Gemini AI</p>
-          </div>
-        ) : (
-          <ContactForm 
-            initialData={currentContact} 
-            scannedImage={scannedImage}
-            onSave={handleSaveContact}
-            onCancel={() => {
-              setView(AppView.LIST);
-              setScannedImage(undefined);
-              setCurrentContact(undefined);
-            }}
-          />
-        )
+        </div>
       )}
     </div>
   );

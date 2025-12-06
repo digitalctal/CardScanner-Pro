@@ -17,7 +17,8 @@ export enum AppView {
   LIST = 'LIST',
   CAMERA = 'CAMERA',
   EDIT = 'EDIT',
-  DETAILS = 'DETAILS'
+  DETAILS = 'DETAILS',
+  AI_ASSISTANT = 'AI_ASSISTANT'
 }
 
 // PWA Install Prompt Type definition
