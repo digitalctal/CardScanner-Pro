@@ -25,8 +25,6 @@ const App: React.FC = () => {
   const handleCapture = async (imageData: string) => {
     setScannedImage(imageData);
     setIsProcessing(true);
-    // Move to edit view immediately to show loading state there or overlay
-    // For now, let's keep camera open with a loader or close it and show loader
     setView(AppView.EDIT); 
     
     try {
@@ -35,8 +33,9 @@ const App: React.FC = () => {
         ...extractedData,
         notes: '', // Initialize notes
       });
-    } catch (error) {
-      alert("Failed to read card. Please try again or enter details manually.");
+    } catch (error: any) {
+      console.error(error);
+      alert(error.message || "Failed to read card. Please try again or enter details manually.");
       setCurrentContact({});
     } finally {
       setIsProcessing(false);
@@ -61,7 +60,7 @@ const App: React.FC = () => {
   const handleSelectContact = (contact: Contact) => {
     setCurrentContact(contact);
     setView(AppView.EDIT);
-    setScannedImage(undefined); // We don't store the image permanently in this demo, only data
+    setScannedImage(undefined);
   };
 
   const handleAddNewManual = () => {
@@ -71,7 +70,8 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="h-screen w-full max-w-md mx-auto bg-white overflow-hidden relative shadow-2xl">
+    // Use 100dvh for proper mobile height including browser bars
+    <div className="h-[100dvh] w-full max-w-md mx-auto bg-white overflow-hidden relative shadow-2xl flex flex-col">
       
       {view === AppView.LIST && (
         <>
@@ -81,7 +81,7 @@ const App: React.FC = () => {
             onDelete={handleDeleteContact}
           />
           {/* Floating Action Button */}
-          <div className="absolute bottom-6 right-6 flex flex-col gap-4">
+          <div className="absolute bottom-8 right-6 flex flex-col gap-4">
              <button 
               onClick={handleAddNewManual}
               className="w-12 h-12 rounded-full bg-gray-200 text-gray-700 shadow-lg flex items-center justify-center hover:bg-gray-300 transition-colors"

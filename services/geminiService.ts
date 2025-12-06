@@ -1,9 +1,17 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { ScannedData } from '../types';
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
 export const extractContactInfo = async (base64Image: string): Promise<ScannedData> => {
+  // Initialize inside function to avoid app crash if env vars are missing at load time
+  // and to ensure we catch initialization errors gracefully
+  let ai;
+  try {
+    ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  } catch (error) {
+    console.error("Gemini Initialization Error:", error);
+    throw new Error("API configuration issue. Please check your API Key.");
+  }
+
   // Remove data URL prefix if present
   const base64Data = base64Image.replace(/^data:image\/(png|jpeg|jpg);base64,/, "");
 
