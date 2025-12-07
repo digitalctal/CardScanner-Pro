@@ -109,17 +109,17 @@ const ContactForm: React.FC<ContactFormProps> = ({ initialData, scannedImage, on
   };
 
   return (
-    <div className="flex flex-col h-full bg-gray-50">
-      <div className="bg-white shadow-sm p-4 sticky top-0 z-10 flex items-center justify-between">
-        <button onClick={onCancel} className="text-gray-600 p-2 -ml-2">
+    <div className="flex flex-col h-full bg-gray-50 dark:bg-black transition-colors duration-300">
+      <div className="bg-white dark:bg-gray-900 shadow-sm p-4 sticky top-0 z-10 flex items-center justify-between transition-colors duration-300">
+        <button onClick={onCancel} className="text-gray-600 dark:text-gray-300 p-2 -ml-2">
           <ArrowLeft size={24} />
         </button>
-        <h1 className="text-lg font-semibold text-gray-800">
+        <h1 className="text-lg font-semibold text-gray-800 dark:text-white">
           {formData.id ? 'Edit Contact' : 'New Contact'}
         </h1>
         <button 
           onClick={handleSubmit} 
-          className="text-blue-600 font-medium px-2 py-1 rounded hover:bg-blue-50"
+          className="text-blue-600 dark:text-blue-400 font-medium px-2 py-1 rounded hover:bg-blue-50 dark:hover:bg-blue-900/30"
         >
           Save
         </button>
@@ -129,7 +129,7 @@ const ContactForm: React.FC<ContactFormProps> = ({ initialData, scannedImage, on
         
         {/* Photo Area */}
         <div className="w-full relative group">
-           <div className={`w-full h-56 rounded-xl overflow-hidden shadow-sm border border-gray-200 bg-gray-100 flex items-center justify-center relative ${!activeImage ? 'bg-gradient-to-br from-gray-100 to-gray-200' : ''}`}>
+           <div className={`w-full h-56 rounded-xl overflow-hidden shadow-sm border border-gray-200 dark:border-gray-800 bg-gray-100 dark:bg-gray-900 flex items-center justify-center relative ${!activeImage ? 'bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900' : ''}`}>
              {activeImage ? (
                <img 
                  src={activeImage} 
@@ -137,10 +137,10 @@ const ContactForm: React.FC<ContactFormProps> = ({ initialData, scannedImage, on
                  className="w-full h-full object-contain bg-black/5" 
                />
              ) : (
-               <div className="flex flex-col items-center text-gray-400">
+               <div className="flex flex-col items-center text-gray-400 dark:text-gray-600">
                  <ImageIcon size={48} className="mb-2 opacity-50" />
                  <span className="text-xs font-medium">No Photo</span>
-                 <span className="text-[10px] text-gray-400 mt-1">Add email to auto-sync</span>
+                 <span className="text-[10px] text-gray-400 dark:text-gray-600 mt-1">Add email to auto-sync</span>
                </div>
              )}
 
@@ -149,7 +149,7 @@ const ContactForm: React.FC<ContactFormProps> = ({ initialData, scannedImage, on
                 <button 
                   onClick={handleSyncPhoto}
                   disabled={isSyncing}
-                  className="bg-white/90 hover:bg-white text-blue-600 text-xs font-semibold px-3 py-2 rounded-lg shadow-sm border border-gray-200 backdrop-blur-sm flex items-center gap-2 active:scale-95 transition-all"
+                  className="bg-white/90 dark:bg-gray-800/90 hover:bg-white dark:hover:bg-gray-800 text-blue-600 dark:text-blue-400 text-xs font-semibold px-3 py-2 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 backdrop-blur-sm flex items-center gap-2 active:scale-95 transition-all"
                 >
                   {isSyncing ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
                   Sync from Web
@@ -165,45 +165,45 @@ const ContactForm: React.FC<ContactFormProps> = ({ initialData, scannedImage, on
 
         <form className="space-y-4" onSubmit={handleSubmit}>
           
-          <div className="bg-white p-4 rounded-xl shadow-sm space-y-4">
-            <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Personal Info</h2>
-            <div className="flex items-center gap-3 border-b border-gray-100 pb-2">
-              <User size={20} className="text-gray-400 shrink-0" />
+          <div className="bg-white dark:bg-gray-900 p-4 rounded-xl shadow-sm space-y-4 transition-colors">
+            <h2 className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2">Personal Info</h2>
+            <div className="flex items-center gap-3 border-b border-gray-100 dark:border-gray-800 pb-2">
+              <User size={20} className="text-gray-400 dark:text-gray-500 shrink-0" />
               <input
                 type="text"
                 placeholder="Full Name"
                 value={formData.name || ''}
                 onChange={(e) => handleChange('name', e.target.value)}
-                className="w-full bg-transparent outline-none text-gray-800 placeholder-gray-400"
+                className="w-full bg-transparent outline-none text-gray-800 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-600"
               />
             </div>
-            <div className="flex items-center gap-3 border-b border-gray-100 pb-2">
-              <Briefcase size={20} className="text-gray-400 shrink-0" />
+            <div className="flex items-center gap-3 border-b border-gray-100 dark:border-gray-800 pb-2">
+              <Briefcase size={20} className="text-gray-400 dark:text-gray-500 shrink-0" />
               <input
                 type="text"
                 placeholder="Job Title"
                 value={formData.jobTitle || ''}
                 onChange={(e) => handleChange('jobTitle', e.target.value)}
-                className="w-full bg-transparent outline-none text-gray-800 placeholder-gray-400"
+                className="w-full bg-transparent outline-none text-gray-800 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-600"
               />
             </div>
             <div className="flex items-center gap-3 pb-2">
-              <Building size={20} className="text-gray-400 shrink-0" />
+              <Building size={20} className="text-gray-400 dark:text-gray-500 shrink-0" />
               <input
                 type="text"
                 placeholder="Company"
                 value={formData.company || ''}
                 onChange={(e) => handleChange('company', e.target.value)}
-                className="w-full bg-transparent outline-none text-gray-800 placeholder-gray-400"
+                className="w-full bg-transparent outline-none text-gray-800 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-600"
               />
             </div>
           </div>
 
           {/* Color Priority Picker */}
-          <div className="bg-white p-4 rounded-xl shadow-sm">
+          <div className="bg-white dark:bg-gray-900 p-4 rounded-xl shadow-sm transition-colors">
              <div className="flex items-center gap-2 mb-3">
-               <Palette size={18} className="text-gray-400" />
-               <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Priority / Color Tag</h2>
+               <Palette size={18} className="text-gray-400 dark:text-gray-500" />
+               <h2 className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Priority / Color Tag</h2>
              </div>
              <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1">
                {COLORS.map((color) => (
@@ -213,8 +213,8 @@ const ContactForm: React.FC<ContactFormProps> = ({ initialData, scannedImage, on
                    onClick={() => handleChange('color', color.hex)}
                    className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 border transition-all ${
                      (formData.color || '#ffffff') === color.hex 
-                       ? 'scale-110 shadow-md ring-2 ring-blue-500 ring-offset-2' 
-                       : 'border-gray-100 hover:scale-105'
+                       ? 'scale-110 shadow-md ring-2 ring-blue-500 ring-offset-2 dark:ring-offset-gray-900' 
+                       : 'border-gray-100 dark:border-gray-700 hover:scale-105'
                    }`}
                    style={{ backgroundColor: color.hex }}
                    title={color.name}
@@ -227,61 +227,61 @@ const ContactForm: React.FC<ContactFormProps> = ({ initialData, scannedImage, on
              </div>
           </div>
 
-          <div className="bg-white p-4 rounded-xl shadow-sm space-y-4">
-            <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Contact Details</h2>
-            <div className="flex items-center gap-3 border-b border-gray-100 pb-2">
-              <Phone size={20} className="text-gray-400 shrink-0" />
+          <div className="bg-white dark:bg-gray-900 p-4 rounded-xl shadow-sm space-y-4 transition-colors">
+            <h2 className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2">Contact Details</h2>
+            <div className="flex items-center gap-3 border-b border-gray-100 dark:border-gray-800 pb-2">
+              <Phone size={20} className="text-gray-400 dark:text-gray-500 shrink-0" />
               <input
                 type="tel"
                 placeholder="Phone Number"
                 value={formData.phone || ''}
                 onChange={(e) => handleChange('phone', e.target.value)}
-                className="w-full bg-transparent outline-none text-gray-800 placeholder-gray-400"
+                className="w-full bg-transparent outline-none text-gray-800 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-600"
               />
             </div>
-            <div className="flex items-center gap-3 border-b border-gray-100 pb-2">
-              <Mail size={20} className="text-gray-400 shrink-0" />
+            <div className="flex items-center gap-3 border-b border-gray-100 dark:border-gray-800 pb-2">
+              <Mail size={20} className="text-gray-400 dark:text-gray-500 shrink-0" />
               <input
                 type="email"
                 placeholder="Email Address"
                 value={formData.email || ''}
                 onChange={(e) => handleChange('email', e.target.value)}
                 onBlur={handleEmailBlur} // Trigger auto-fetch on blur
-                className="w-full bg-transparent outline-none text-gray-800 placeholder-gray-400"
+                className="w-full bg-transparent outline-none text-gray-800 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-600"
               />
             </div>
-            <div className="flex items-center gap-3 border-b border-gray-100 pb-2">
-              <Globe size={20} className="text-gray-400 shrink-0" />
+            <div className="flex items-center gap-3 border-b border-gray-100 dark:border-gray-800 pb-2">
+              <Globe size={20} className="text-gray-400 dark:text-gray-500 shrink-0" />
               <input
                 type="url"
                 placeholder="Website"
                 value={formData.website || ''}
                 onChange={(e) => handleChange('website', e.target.value)}
-                className="w-full bg-transparent outline-none text-gray-800 placeholder-gray-400"
+                className="w-full bg-transparent outline-none text-gray-800 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-600"
               />
             </div>
             <div className="flex items-center gap-3 pb-2">
-              <MapPin size={20} className="text-gray-400 shrink-0" />
+              <MapPin size={20} className="text-gray-400 dark:text-gray-500 shrink-0" />
               <input
                 type="text"
                 placeholder="Address"
                 value={formData.address || ''}
                 onChange={(e) => handleChange('address', e.target.value)}
-                className="w-full bg-transparent outline-none text-gray-800 placeholder-gray-400"
+                className="w-full bg-transparent outline-none text-gray-800 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-600"
               />
             </div>
           </div>
 
-          <div className="bg-white p-4 rounded-xl shadow-sm space-y-2">
+          <div className="bg-white dark:bg-gray-900 p-4 rounded-xl shadow-sm space-y-2 transition-colors">
             <div className="flex items-center gap-2 mb-2">
                <FileText size={18} className="text-blue-500" />
-               <h2 className="text-sm font-semibold text-gray-700">Comments / Notes</h2>
+               <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200">Comments / Notes</h2>
             </div>
             <textarea
               placeholder="Add personal notes, meeting context, or reminders here..."
               value={formData.notes || ''}
               onChange={(e) => handleChange('notes', e.target.value)}
-              className="w-full h-32 p-3 bg-yellow-50 rounded-lg border border-yellow-100 text-gray-700 placeholder-gray-400 outline-none resize-none focus:ring-2 focus:ring-yellow-200 transition-shadow"
+              className="w-full h-32 p-3 bg-yellow-50 dark:bg-yellow-900/10 rounded-lg border border-yellow-100 dark:border-yellow-900/30 text-gray-700 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-600 outline-none resize-none focus:ring-2 focus:ring-yellow-200 dark:focus:ring-yellow-700 transition-all"
             />
           </div>
 
@@ -290,10 +290,10 @@ const ContactForm: React.FC<ContactFormProps> = ({ initialData, scannedImage, on
         <div className="h-20"></div>
       </div>
       
-      <div className="p-4 bg-white border-t border-gray-200 md:hidden sticky bottom-0">
+      <div className="p-4 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 md:hidden sticky bottom-0 transition-colors">
           <button 
             onClick={handleSubmit}
-            className="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold shadow-lg active:scale-95 transition-transform flex items-center justify-center gap-2"
+            className="w-full bg-blue-600 dark:bg-blue-500 text-white py-3 rounded-xl font-semibold shadow-lg active:scale-95 transition-transform flex items-center justify-center gap-2"
           >
             <Save size={20} />
             Save Contact

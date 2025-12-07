@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Camera, Plus, Users, Sparkles, ScanLine } from 'lucide-react';
+import { Plus, Users, Sparkles, ScanLine } from 'lucide-react';
 import { AppView, Contact } from './types';
 import CameraCapture from './components/CameraCapture';
 import ContactForm from './components/ContactForm';
@@ -15,6 +15,31 @@ const App: React.FC = () => {
   const [currentContact, setCurrentContact] = useState<Partial<Contact> | undefined>(undefined);
   const [scannedImage, setScannedImage] = useState<string | undefined>(undefined);
   const [isProcessing, setIsProcessing] = useState(false);
+  
+  // Theme Management
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('theme') as 'light' | 'dark' || 'light';
+    }
+    return 'light';
+  });
+
+  useEffect(() => {
+    const root = window.document.documentElement;
+    if (theme === 'dark') {
+      root.classList.add('dark');
+      // Update meta theme-color for mobile browser bars
+      document.querySelector('meta[name="theme-color"]')?.setAttribute('content', '#000000');
+    } else {
+      root.classList.remove('dark');
+      document.querySelector('meta[name="theme-color"]')?.setAttribute('content', '#ffffff');
+    }
+    localStorage.setItem('theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme(prev => prev === 'light' ? 'dark' : 'light');
+  };
 
   useEffect(() => {
     setContacts(getContacts());
@@ -92,7 +117,7 @@ const App: React.FC = () => {
 
   return (
     // Use 100dvh for proper mobile height including browser bars
-    <div className="h-[100dvh] w-full max-w-md mx-auto bg-white overflow-hidden relative shadow-2xl flex flex-col">
+    <div className="h-[100dvh] w-full max-w-md mx-auto bg-white dark:bg-black overflow-hidden relative shadow-2xl flex flex-col transition-colors duration-300">
       
       {/* Main Content Area */}
       <div className="flex-1 overflow-hidden relative">
@@ -101,6 +126,8 @@ const App: React.FC = () => {
               contacts={contacts} 
               onSelect={handleSelectContact} 
               onDelete={handleDeleteContact}
+              theme={theme}
+              onToggleTheme={toggleTheme}
             />
         )}
 
@@ -117,10 +144,10 @@ const App: React.FC = () => {
 
         {view === AppView.EDIT && (
           isProcessing ? (
-            <div className="h-full flex flex-col items-center justify-center bg-gray-50 space-y-4">
+            <div className="h-full flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-900 space-y-4">
                <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
-               <p className="text-gray-500 font-medium animate-pulse">Processing...</p>
-               <p className="text-xs text-gray-400">{scannedImage ? "Analyzing with Gemini AI" : "Parsing QR Code"}</p>
+               <p className="text-gray-500 dark:text-gray-400 font-medium animate-pulse">Processing...</p>
+               <p className="text-xs text-gray-400 dark:text-gray-500">{scannedImage ? "Analyzing with Gemini AI" : "Parsing QR Code"}</p>
             </div>
           ) : (
             <ContactForm 
@@ -141,7 +168,7 @@ const App: React.FC = () => {
       {view === AppView.LIST && (
          <button 
           onClick={handleAddNewManual}
-          className="absolute bottom-24 right-6 w-12 h-12 rounded-full bg-white text-blue-600 shadow-lg border border-blue-100 flex items-center justify-center hover:bg-gray-50 transition-colors z-20"
+          className="absolute bottom-24 right-6 w-12 h-12 rounded-full bg-white dark:bg-gray-800 text-blue-600 shadow-lg border border-blue-100 dark:border-gray-700 flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors z-20"
           title="Add Manually"
         >
           <Plus size={24} />
@@ -150,11 +177,11 @@ const App: React.FC = () => {
 
       {/* Bottom Navigation Bar */}
       {showBottomNav && (
-        <div className="bg-white border-t border-gray-200 pb-safe-bottom z-30">
+        <div className="bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 pb-safe-bottom z-30 transition-colors duration-300">
           <div className="flex justify-around items-center h-16">
             <button 
               onClick={() => setView(AppView.LIST)}
-              className={`flex flex-col items-center gap-1 w-16 ${view === AppView.LIST ? 'text-blue-600' : 'text-gray-400'}`}
+              className={`flex flex-col items-center gap-1 w-16 ${view === AppView.LIST ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400 dark:text-gray-500'}`}
             >
               <Users size={24} strokeWidth={view === AppView.LIST ? 2.5 : 2} />
               <span className="text-[10px] font-medium">Contacts</span>
@@ -164,7 +191,7 @@ const App: React.FC = () => {
             <div className="relative -top-5">
               <button 
                 onClick={() => setView(AppView.CAMERA)}
-                className="w-16 h-16 rounded-full bg-blue-600 text-white shadow-lg shadow-blue-600/30 flex items-center justify-center hover:scale-105 transition-transform"
+                className="w-16 h-16 rounded-full bg-blue-600 dark:bg-blue-500 text-white shadow-lg shadow-blue-600/30 flex items-center justify-center hover:scale-105 transition-transform border-4 border-white dark:border-black"
               >
                 <ScanLine size={28} />
               </button>
@@ -172,7 +199,7 @@ const App: React.FC = () => {
 
             <button 
               onClick={() => setView(AppView.AI_ASSISTANT)}
-              className={`flex flex-col items-center gap-1 w-16 ${view === AppView.AI_ASSISTANT ? 'text-purple-600' : 'text-gray-400'}`}
+              className={`flex flex-col items-center gap-1 w-16 ${view === AppView.AI_ASSISTANT ? 'text-purple-600 dark:text-purple-400' : 'text-gray-400 dark:text-gray-500'}`}
             >
               <Sparkles size={24} strokeWidth={view === AppView.AI_ASSISTANT ? 2.5 : 2} />
               <span className="text-[10px] font-medium">Ask AI</span>

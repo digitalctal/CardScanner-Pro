@@ -50,11 +50,11 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ contacts }) => {
   };
 
   return (
-    <div className="flex flex-col h-full bg-gray-50">
+    <div className="flex flex-col h-full bg-gray-50 dark:bg-black transition-colors duration-300">
       {/* Header */}
-      <div className="bg-white p-4 shadow-sm sticky top-0 z-10 flex items-center gap-2">
-        <Sparkles className="text-purple-600" size={24} />
-        <h1 className="text-xl font-bold text-gray-800">Network AI</h1>
+      <div className="bg-white dark:bg-gray-900 p-4 shadow-sm sticky top-0 z-10 flex items-center gap-2 transition-colors duration-300">
+        <Sparkles className="text-purple-600 dark:text-purple-400" size={24} />
+        <h1 className="text-xl font-bold text-gray-800 dark:text-white">Network AI</h1>
       </div>
 
       {/* Chat Area */}
@@ -65,14 +65,14 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ contacts }) => {
             className={`flex items-start gap-2.5 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}
           >
             <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 
-              ${msg.role === 'user' ? 'bg-blue-600' : 'bg-purple-600'}`}>
+              ${msg.role === 'user' ? 'bg-blue-600 dark:bg-blue-500' : 'bg-purple-600 dark:bg-purple-500'}`}>
               {msg.role === 'user' ? <UserIcon size={16} className="text-white" /> : <Bot size={16} className="text-white" />}
             </div>
             
             <div className={`p-3.5 rounded-2xl max-w-[80%] text-sm leading-relaxed whitespace-pre-wrap
               ${msg.role === 'user' 
-                ? 'bg-blue-600 text-white rounded-tr-none' 
-                : 'bg-white text-gray-800 shadow-sm border border-gray-100 rounded-tl-none'}`}
+                ? 'bg-blue-600 dark:bg-blue-500 text-white rounded-tr-none' 
+                : 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 shadow-sm border border-gray-100 dark:border-gray-700 rounded-tl-none'}`}
             >
               {msg.text}
             </div>
@@ -80,14 +80,14 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ contacts }) => {
         ))}
         {isLoading && (
           <div className="flex items-start gap-2.5">
-            <div className="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center shrink-0">
+            <div className="w-8 h-8 rounded-full bg-purple-600 dark:bg-purple-500 flex items-center justify-center shrink-0">
                <Bot size={16} className="text-white" />
             </div>
-            <div className="bg-white p-4 rounded-2xl rounded-tl-none shadow-sm border border-gray-100">
+            <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl rounded-tl-none shadow-sm border border-gray-100 dark:border-gray-700">
               <div className="flex gap-1">
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-75"></div>
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-150"></div>
+                <div className="w-2 h-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-bounce"></div>
+                <div className="w-2 h-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-bounce delay-75"></div>
+                <div className="w-2 h-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-bounce delay-150"></div>
               </div>
             </div>
           </div>
@@ -96,7 +96,7 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ contacts }) => {
       </div>
 
       {/* Input Area */}
-      <div className="p-4 bg-white border-t border-gray-200 sticky bottom-0">
+      <div className="p-4 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 sticky bottom-0 transition-colors duration-300">
         <div className="flex gap-2">
           <input
             type="text"
@@ -104,12 +104,12 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ contacts }) => {
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
             placeholder="Ask about your contacts..."
-            className="flex-1 bg-gray-100 text-gray-800 rounded-full px-5 py-3 outline-none focus:ring-2 focus:ring-purple-500/30"
+            className="flex-1 bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-100 rounded-full px-5 py-3 outline-none focus:ring-2 focus:ring-purple-500/30 placeholder-gray-500 dark:placeholder-gray-400"
           />
           <button 
             onClick={handleSend}
             disabled={!input.trim() || isLoading}
-            className="w-12 h-12 rounded-full bg-purple-600 text-white flex items-center justify-center shadow-md active:scale-95 transition-transform disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-12 h-12 rounded-full bg-purple-600 dark:bg-purple-500 text-white flex items-center justify-center shadow-md active:scale-95 transition-transform disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Send size={20} />
           </button>
