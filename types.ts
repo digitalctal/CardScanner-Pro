@@ -9,10 +9,11 @@ export interface Contact {
   address: string;
   notes: string;
   photoData?: string; // Base64 string of the business card
+  color?: string; // Background/Priority color hex
   createdAt: number;
 }
 
-export type ScannedData = Omit<Contact, 'id' | 'notes' | 'photoData' | 'createdAt'>;
+export type ScannedData = Omit<Contact, 'id' | 'notes' | 'photoData' | 'createdAt' | 'color'>;
 
 export enum AppView {
   LIST = 'LIST',

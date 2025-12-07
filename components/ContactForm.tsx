@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Save, ArrowLeft, User, Briefcase, Building, Phone, Mail, Globe, MapPin, FileText, RefreshCw, Image as ImageIcon, Loader2 } from 'lucide-react';
+import { Save, ArrowLeft, User, Briefcase, Building, Phone, Mail, Globe, MapPin, FileText, RefreshCw, Image as ImageIcon, Loader2, Palette, Check } from 'lucide-react';
 import { Contact, ScannedData } from '../types';
 
 interface ContactFormProps {
@@ -8,6 +8,16 @@ interface ContactFormProps {
   onSave: (contact: Contact) => void;
   onCancel: () => void;
 }
+
+const COLORS = [
+  { hex: '#ffffff', name: 'Default' },
+  { hex: '#fecaca', name: 'Urgent' }, // Red-200
+  { hex: '#bfdbfe', name: 'Work' },   // Blue-200
+  { hex: '#bbf7d0', name: 'Personal' }, // Green-200
+  { hex: '#fef08a', name: 'Pending' }, // Yellow-200
+  { hex: '#e9d5ff', name: 'VIP' },     // Purple-200
+  { hex: '#fed7aa', name: 'Orange' },  // Orange-200
+];
 
 const ContactForm: React.FC<ContactFormProps> = ({ initialData, scannedImage, onSave, onCancel }) => {
   const [formData, setFormData] = useState<Partial<Contact>>(initialData || {});
@@ -92,6 +102,7 @@ const ContactForm: React.FC<ContactFormProps> = ({ initialData, scannedImage, on
       address: formData.address || '',
       notes: formData.notes || '',
       photoData: activeImage, // Use the currently active image (scan or synced)
+      color: formData.color || '#ffffff',
       createdAt: formData.createdAt || now,
     };
     onSave(newContact);
@@ -186,6 +197,34 @@ const ContactForm: React.FC<ContactFormProps> = ({ initialData, scannedImage, on
                 className="w-full bg-transparent outline-none text-gray-800 placeholder-gray-400"
               />
             </div>
+          </div>
+
+          {/* Color Priority Picker */}
+          <div className="bg-white p-4 rounded-xl shadow-sm">
+             <div className="flex items-center gap-2 mb-3">
+               <Palette size={18} className="text-gray-400" />
+               <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Priority / Color Tag</h2>
+             </div>
+             <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1">
+               {COLORS.map((color) => (
+                 <button
+                   key={color.hex}
+                   type="button"
+                   onClick={() => handleChange('color', color.hex)}
+                   className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 border transition-all ${
+                     (formData.color || '#ffffff') === color.hex 
+                       ? 'scale-110 shadow-md ring-2 ring-blue-500 ring-offset-2' 
+                       : 'border-gray-100 hover:scale-105'
+                   }`}
+                   style={{ backgroundColor: color.hex }}
+                   title={color.name}
+                 >
+                   {(formData.color || '#ffffff') === color.hex && (
+                     <Check size={16} className="text-black/50" />
+                   )}
+                 </button>
+               ))}
+             </div>
           </div>
 
           <div className="bg-white p-4 rounded-xl shadow-sm space-y-4">

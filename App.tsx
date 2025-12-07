@@ -7,6 +7,7 @@ import ContactList from './components/ContactList';
 import AiAssistant from './components/AiAssistant';
 import { extractContactInfo } from './services/geminiService';
 import { getContacts, saveContact, deleteContact } from './services/storageService';
+import { parseVCardString } from './services/vcardService';
 
 const App: React.FC = () => {
   const [view, setView] = useState<AppView>(AppView.LIST);
@@ -23,23 +24,39 @@ const App: React.FC = () => {
     setContacts(getContacts());
   };
 
-  const handleCapture = async (imageData: string) => {
-    setScannedImage(imageData);
+  const handleCapture = async (data: string, type: 'image' | 'qr') => {
     setIsProcessing(true);
-    setView(AppView.EDIT); 
+    setView(AppView.EDIT);
     
-    try {
-      const extractedData = await extractContactInfo(imageData);
-      setCurrentContact({
-        ...extractedData,
-        notes: '', // Initialize notes
-      });
-    } catch (error: any) {
-      console.error(error);
-      alert(error.message || "Failed to read card. Please try again or enter details manually.");
-      setCurrentContact({});
-    } finally {
-      setIsProcessing(false);
+    if (type === 'image') {
+      // OCR FLOW
+      setScannedImage(data);
+      try {
+        const extractedData = await extractContactInfo(data);
+        setCurrentContact({
+          ...extractedData,
+          notes: '',
+        });
+      } catch (error: any) {
+        console.error(error);
+        alert(error.message || "Failed to read card.");
+        setCurrentContact({});
+      } finally {
+        setIsProcessing(false);
+      }
+    } else {
+      // QR FLOW
+      setScannedImage(undefined);
+      try {
+        const parsedData = parseVCardString(data);
+        setCurrentContact(parsedData);
+        // Add a slight delay just so the user sees the transition
+        setTimeout(() => setIsProcessing(false), 500);
+      } catch (e) {
+        alert("Invalid QR Code");
+        setIsProcessing(false);
+        setView(AppView.LIST);
+      }
     }
   };
 
@@ -102,8 +119,8 @@ const App: React.FC = () => {
           isProcessing ? (
             <div className="h-full flex flex-col items-center justify-center bg-gray-50 space-y-4">
                <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
-               <p className="text-gray-500 font-medium animate-pulse">Analyzing Business Card...</p>
-               <p className="text-xs text-gray-400">Powered by Gemini AI</p>
+               <p className="text-gray-500 font-medium animate-pulse">Processing...</p>
+               <p className="text-xs text-gray-400">{scannedImage ? "Analyzing with Gemini AI" : "Parsing QR Code"}</p>
             </div>
           ) : (
             <ContactForm 

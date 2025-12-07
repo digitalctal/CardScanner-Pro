@@ -1,6 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Search, User, Phone, Mail, Trash2, Download, UserPlus, MapPin, MessageCircle, Share2, Image as ImageIcon } from 'lucide-react';
+import { Search, User, Phone, Mail, Trash2, Download, UserPlus, MapPin, MessageCircle, Share2, Image as ImageIcon, QrCode, X } from 'lucide-react';
+import QRCode from 'qrcode';
 import { Contact, BeforeInstallPromptEvent } from '../types';
+import { generateVCardString } from '../services/vcardService';
 
 interface ContactListProps {
   contacts: Contact[];
@@ -11,6 +13,8 @@ interface ContactListProps {
 const ContactList: React.FC<ContactListProps> = ({ contacts, onSelect, onDelete }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [qrModalContact, setQrModalContact] = useState<Contact | null>(null);
+  const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
 
   // PWA Install Logic
   useEffect(() => {
@@ -74,25 +78,7 @@ const ContactList: React.FC<ContactListProps> = ({ contacts, onSelect, onDelete 
 
   const handleExportVcf = async (e: React.MouseEvent, contact: Contact) => {
     e.stopPropagation();
-    
-    let photoBlock = '';
-    // Priority: Saved Data -> Web Data (we can't easily export web data to VCF without downloading it first, so we prioritize saved)
-    if (contact.photoData) {
-      const base64Clean = contact.photoData.replace(/^data:image\/[a-z]+;base64,/, "");
-      photoBlock = `PHOTO;ENCODING=b;TYPE=JPEG:${base64Clean}\n`;
-    }
-
-    const vcard = `BEGIN:VCARD
-VERSION:3.0
-FN:${contact.name}
-ORG:${contact.company}
-TITLE:${contact.jobTitle}
-TEL;TYPE=CELL:${contact.phone}
-EMAIL:${contact.email}
-URL:${contact.website}
-ADR;TYPE=WORK:;;${contact.address};;;;
-NOTE:${contact.notes}
-${photoBlock}END:VCARD`;
+    const vcard = generateVCardString(contact);
 
     try {
       const file = new File([vcard], `${contact.name.replace(/\s+/g, '_')}.vcf`, { type: 'text/vcard' });
@@ -116,6 +102,19 @@ ${photoBlock}END:VCARD`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  const handleShowQR = async (e: React.MouseEvent, contact: Contact) => {
+    e.stopPropagation();
+    const vcard = generateVCardString(contact);
+    try {
+      const url = await QRCode.toDataURL(vcard, { width: 300, margin: 2 });
+      setQrCodeUrl(url);
+      setQrModalContact(contact);
+    } catch (err) {
+      console.error("QR Gen Error", err);
+      alert("Could not generate QR code");
+    }
   };
 
   const filteredContacts = useMemo(() => {
@@ -163,35 +162,38 @@ ${photoBlock}END:VCARD`;
         ) : (
           <div className="grid grid-cols-1 gap-4">
             {filteredContacts.map(contact => {
-              // Logic: Use saved photo -> Use Web Avatar (Email) -> Use Placeholder
               const avatarSource = contact.photoData 
                 ? contact.photoData 
                 : contact.email 
                   ? `https://unavatar.io/${contact.email}` 
                   : null;
 
+              // If default white, use pure white. Else, use the custom color.
+              const cardBg = contact.color || '#ffffff';
+              // Check if color is essentially white to decide border
+              const isWhite = cardBg.toLowerCase() === '#ffffff';
+
               return (
                 <div 
                   key={contact.id} 
-                  className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden active:bg-gray-50 transition-colors group relative"
+                  className={`rounded-2xl shadow-sm overflow-hidden active:scale-[0.99] transition-all group relative ${isWhite ? 'border border-gray-100 bg-white' : 'border border-transparent'}`}
+                  style={{ backgroundColor: cardBg }}
                   onClick={() => onSelect(contact)}
                 >
                    {/* Top Middle Avatar Section */}
                    <div className="pt-6 pb-2 flex flex-col items-center justify-center relative">
-                      <div className="w-20 h-20 rounded-full bg-gray-100 ring-4 ring-white shadow-md flex items-center justify-center overflow-hidden mb-3 relative z-10">
+                      <div className="w-20 h-20 rounded-full bg-white/50 ring-4 ring-white/50 shadow-md flex items-center justify-center overflow-hidden mb-3 relative z-10">
                         {avatarSource ? (
                           <img 
                             src={avatarSource} 
                             alt={contact.name}
                             className="w-full h-full object-cover"
                             onError={(e) => {
-                              // If unavatar fails, fallback to icon
                               e.currentTarget.style.display = 'none'; 
                               e.currentTarget.nextElementSibling?.classList.remove('hidden');
                             }}
                           />
                         ) : null}
-                        {/* Fallback Icon (hidden if image loads successfully) */}
                         <div className={`flex items-center justify-center w-full h-full text-gray-400 bg-gray-200 ${avatarSource ? 'hidden' : ''}`}>
                           <User size={32} />
                         </div>
@@ -199,20 +201,20 @@ ${photoBlock}END:VCARD`;
                       
                       <div className="text-center px-4 w-full">
                         <h3 className="font-bold text-gray-800 text-lg truncate">{contact.name}</h3>
-                        <p className="text-sm text-gray-500 font-medium truncate">{contact.jobTitle}</p>
-                        {contact.company && <p className="text-xs text-blue-600 font-medium mt-0.5 truncate">{contact.company}</p>}
+                        <p className="text-sm text-gray-600 font-medium truncate">{contact.jobTitle}</p>
+                        {contact.company && <p className="text-xs text-blue-700/80 font-medium mt-0.5 truncate">{contact.company}</p>}
                       </div>
                    </div>
 
                    {/* Action Bar */}
                    <div className="px-4 pb-4 mt-2">
-                     <div className="flex items-center justify-center gap-3 pt-4 border-t border-gray-50">
+                     <div className="flex items-center justify-center gap-3 pt-4 border-t border-black/5">
                         {/* Quick Primary Actions */}
                         {contact.phone && (
                           <a 
                             href={`tel:${contact.phone}`} 
                             onClick={e => e.stopPropagation()} 
-                            className="w-10 h-10 rounded-full bg-green-50 text-green-600 flex items-center justify-center hover:bg-green-100 transition-colors"
+                            className="w-10 h-10 rounded-full bg-white/60 text-green-700 flex items-center justify-center hover:bg-white transition-colors shadow-sm"
                             title="Call"
                           >
                              <Phone size={18} /> 
@@ -221,7 +223,7 @@ ${photoBlock}END:VCARD`;
                         {contact.phone && (
                             <button
                               onClick={(e) => handleWhatsApp(e, contact.phone)}
-                              className="w-10 h-10 rounded-full bg-green-100 text-green-700 flex items-center justify-center hover:bg-green-200"
+                              className="w-10 h-10 rounded-full bg-white/60 text-green-700 flex items-center justify-center hover:bg-white transition-colors shadow-sm"
                               title="WhatsApp"
                             >
                               <MessageCircle size={18} />
@@ -232,49 +234,36 @@ ${photoBlock}END:VCARD`;
                           <a 
                             href={`mailto:${contact.email}`} 
                             onClick={e => e.stopPropagation()} 
-                            className="w-10 h-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center hover:bg-blue-100 transition-colors"
+                            className="w-10 h-10 rounded-full bg-white/60 text-blue-700 flex items-center justify-center hover:bg-white transition-colors shadow-sm"
                             title="Email"
                           >
                              <Mail size={18} /> 
                           </a>
                         )}
 
-                        {contact.address && (
-                          <a 
-                            href={`https://maps.google.com/?q=${encodeURIComponent(contact.address)}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={e => e.stopPropagation()} 
-                            className="w-10 h-10 rounded-full bg-orange-50 text-orange-600 flex items-center justify-center hover:bg-orange-100"
-                            title="Map"
-                          >
-                              <MapPin size={18} />
-                          </a>
-                        )}
-
-                        <div className="w-px h-6 bg-gray-200 mx-1"></div>
+                        <div className="w-px h-6 bg-black/10 mx-1"></div>
 
                         {/* Secondary Actions */}
                         <button 
                           onClick={(e) => handleExportVcf(e, contact)}
-                          className="w-8 h-8 text-gray-400 hover:text-indigo-600 flex items-center justify-center"
-                          title="Sync to Contacts"
+                          className="w-8 h-8 text-gray-500 hover:text-black flex items-center justify-center"
+                          title="Save to Phone"
                         >
                           <UserPlus size={18} />
                         </button>
                         
                         <button 
-                          onClick={(e) => handleShare(e, contact)}
-                          className="w-8 h-8 text-gray-400 hover:text-orange-600 flex items-center justify-center"
-                          title="Share"
+                          onClick={(e) => handleShowQR(e, contact)}
+                          className="w-8 h-8 text-gray-500 hover:text-black flex items-center justify-center"
+                          title="Show QR Code"
                         >
-                          <Share2 size={18} />
+                          <QrCode size={18} />
                         </button>
 
                          {contact.photoData && (
                           <button 
                             onClick={(e) => handleDownloadImage(e, contact)}
-                            className="w-8 h-8 text-gray-400 hover:text-purple-600 flex items-center justify-center"
+                            className="w-8 h-8 text-gray-500 hover:text-purple-700 flex items-center justify-center"
                             title="Download Scan"
                           >
                             <ImageIcon size={18} />
@@ -283,7 +272,7 @@ ${photoBlock}END:VCARD`;
 
                         <button 
                           onClick={(e) => { e.stopPropagation(); onDelete(contact.id); }}
-                          className="w-8 h-8 text-gray-400 hover:text-red-500 flex items-center justify-center"
+                          className="w-8 h-8 text-gray-500 hover:text-red-600 flex items-center justify-center"
                           title="Delete"
                         >
                           <Trash2 size={18} />
@@ -297,6 +286,36 @@ ${photoBlock}END:VCARD`;
         )}
         <div className="h-20"></div> {/* Spacer for bottom nav */}
       </div>
+
+      {/* QR Code Modal */}
+      {qrModalContact && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 animate-in fade-in duration-200" onClick={() => setQrModalContact(null)}>
+           <div className="bg-white rounded-2xl w-full max-w-sm p-6 relative flex flex-col items-center shadow-2xl" onClick={e => e.stopPropagation()}>
+              <button onClick={() => setQrModalContact(null)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
+                <X size={24} />
+              </button>
+              
+              <div className="w-16 h-16 rounded-full bg-gray-100 mb-4 overflow-hidden border-2 border-white shadow-md">
+                 {qrModalContact.photoData ? (
+                   <img src={qrModalContact.photoData} className="w-full h-full object-cover" />
+                 ) : (
+                   <div className="flex items-center justify-center h-full text-gray-400"><User size={32} /></div>
+                 )}
+              </div>
+              
+              <h3 className="text-xl font-bold text-gray-900 text-center mb-1">{qrModalContact.name}</h3>
+              <p className="text-sm text-gray-500 mb-6">{qrModalContact.company}</p>
+
+              <div className="bg-white p-2 rounded-xl border border-gray-100 shadow-inner mb-6">
+                <img src={qrCodeUrl} alt="Contact QR Code" className="w-48 h-48 md:w-56 md:h-56 object-contain" />
+              </div>
+
+              <p className="text-xs text-center text-gray-400 max-w-xs">
+                Scan with any phone camera to add <strong>{qrModalContact.name.split(' ')[0]}</strong> to contacts instantly.
+              </p>
+           </div>
+        </div>
+      )}
     </div>
   );
 };
