@@ -8,10 +8,11 @@ export interface Contact {
   website: string;
   address: string;
   notes: string;
+  photoData?: string; // Base64 string of the business card
   createdAt: number;
 }
 
-export type ScannedData = Omit<Contact, 'id' | 'notes' | 'createdAt'>;
+export type ScannedData = Omit<Contact, 'id' | 'notes' | 'photoData' | 'createdAt'>;
 
 export enum AppView {
   LIST = 'LIST',

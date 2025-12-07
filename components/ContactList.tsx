@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Search, User, ChevronRight, Phone, Mail, Trash2, Download, UserPlus, MapPin, MessageCircle, Share2 } from 'lucide-react';
+import { Search, User, ChevronRight, Phone, Mail, Trash2, Download, UserPlus, MapPin, MessageCircle, Share2, Image as ImageIcon } from 'lucide-react';
 import { Contact, BeforeInstallPromptEvent } from '../types';
 
 interface ContactListProps {
@@ -59,9 +59,32 @@ const ContactList: React.FC<ContactListProps> = ({ contacts, onSelect, onDelete 
     }
   };
 
-  const handleExportVcf = (e: React.MouseEvent, contact: Contact) => {
+  const handleDownloadImage = (e: React.MouseEvent, contact: Contact) => {
+    e.stopPropagation();
+    if (!contact.photoData) {
+      alert("No card image available for this contact.");
+      return;
+    }
+
+    const link = document.createElement('a');
+    link.href = contact.photoData;
+    link.download = `${contact.name.replace(/\s+/g, '_')}_Card.jpg`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleExportVcf = async (e: React.MouseEvent, contact: Contact) => {
     e.stopPropagation();
     
+    let photoBlock = '';
+    if (contact.photoData) {
+      // Remove the Data URL prefix to get raw Base64
+      const base64Clean = contact.photoData.replace(/^data:image\/[a-z]+;base64,/, "");
+      // VCard 3.0 Standard for Photos
+      photoBlock = `PHOTO;ENCODING=b;TYPE=JPEG:${base64Clean}\n`;
+    }
+
     // Create VCF string
     const vcard = `BEGIN:VCARD
 VERSION:3.0
@@ -73,8 +96,25 @@ EMAIL:${contact.email}
 URL:${contact.website}
 ADR;TYPE=WORK:;;${contact.address};;;;
 NOTE:${contact.notes}
-END:VCARD`;
+${photoBlock}END:VCARD`;
 
+    // Attempt to use the Native Share API for files (works best on Mobile for importing contacts)
+    try {
+      const file = new File([vcard], `${contact.name.replace(/\s+/g, '_')}.vcf`, { type: 'text/vcard' });
+      
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: contact.name,
+          text: 'Contact Card'
+        });
+        return;
+      }
+    } catch (err) {
+      console.log("Native file share not supported or failed, falling back to download", err);
+    }
+
+    // Fallback: Direct Download
     const blob = new Blob([vcard], { type: 'text/vcard' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -190,6 +230,16 @@ END:VCARD`;
                             <MapPin size={18} />
                          </a>
                       )}
+                      
+                      {contact.photoData && (
+                        <button 
+                          onClick={(e) => handleDownloadImage(e, contact)}
+                          className="p-2 bg-purple-50 text-purple-600 rounded-lg hover:bg-purple-100"
+                          title="Download Card Image"
+                        >
+                          <ImageIcon size={18} />
+                        </button>
+                      )}
 
                       <button 
                         onClick={(e) => handleShare(e, contact)}
@@ -202,7 +252,7 @@ END:VCARD`;
                       <button 
                         onClick={(e) => handleExportVcf(e, contact)}
                         className="p-2 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100"
-                        title="Save to Phone Contacts"
+                        title="Sync to Phone Contacts"
                       >
                         <UserPlus size={18} />
                       </button>

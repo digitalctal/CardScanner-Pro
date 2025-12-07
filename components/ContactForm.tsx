@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Save, ArrowLeft, User, Briefcase, Building, Phone, Mail, Globe, MapPin, FileText } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Save, ArrowLeft, User, Briefcase, Building, Phone, Mail, Globe, MapPin, FileText, RefreshCw, Image as ImageIcon, Loader2 } from 'lucide-react';
 import { Contact, ScannedData } from '../types';
 
 interface ContactFormProps {
@@ -11,14 +11,60 @@ interface ContactFormProps {
 
 const ContactForm: React.FC<ContactFormProps> = ({ initialData, scannedImage, onSave, onCancel }) => {
   const [formData, setFormData] = useState<Partial<Contact>>(initialData || {});
+  // Initialize active image: prioritize new scan, then existing photo
+  const [activeImage, setActiveImage] = useState<string | undefined>(scannedImage || initialData?.photoData);
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  useEffect(() => {
+    // If a new scan comes in via props (though usually this component mounts with it), ensure it's set
+    if (scannedImage) {
+      setActiveImage(scannedImage);
+    }
+  }, [scannedImage]);
 
   const handleChange = (field: keyof Contact, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
+  const handleSyncPhoto = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    
+    if (!formData.email) {
+      if (formData.phone) {
+         alert("Photo sync currently works with Email addresses (Gravatar/Web profiles). WhatsApp profile pictures cannot be accessed publicly.");
+         return;
+      }
+      alert("Please enter an email address to search for a profile photo.");
+      return;
+    }
+
+    setIsSyncing(true);
+    try {
+      // unavatar.io aggregates Gravatar, Clearbit, etc.
+      const response = await fetch(`https://unavatar.io/${formData.email}?fallback=false`);
+      
+      if (!response.ok) {
+        throw new Error("No public profile photo found for this email.");
+      }
+
+      const blob = await response.blob();
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64 = reader.result as string;
+        setActiveImage(base64);
+      };
+      reader.readAsDataURL(blob);
+    } catch (error) {
+      alert("Could not find a public profile photo for this email. Try adding a different email.");
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const now = Date.now();
+    
     const newContact: Contact = {
       id: formData.id || `contact_${now}`,
       name: formData.name || 'Unknown',
@@ -29,6 +75,7 @@ const ContactForm: React.FC<ContactFormProps> = ({ initialData, scannedImage, on
       website: formData.website || '',
       address: formData.address || '',
       notes: formData.notes || '',
+      photoData: activeImage, // Use the currently active image (scan or synced)
       createdAt: formData.createdAt || now,
     };
     onSave(newContact);
@@ -52,14 +99,41 @@ const ContactForm: React.FC<ContactFormProps> = ({ initialData, scannedImage, on
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-6">
-        {scannedImage && (
-           <div className="w-full h-48 bg-gray-200 rounded-xl overflow-hidden shadow-inner mb-6 relative group">
-             <img src={scannedImage} alt="Scanned Card" className="w-full h-full object-contain" />
-             <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-               <span className="text-white text-sm">Original Scan</span>
+        
+        {/* Photo Area */}
+        <div className="w-full relative group">
+           <div className={`w-full h-56 rounded-xl overflow-hidden shadow-sm border border-gray-200 bg-gray-100 flex items-center justify-center relative ${!activeImage ? 'bg-gradient-to-br from-gray-100 to-gray-200' : ''}`}>
+             {activeImage ? (
+               <img 
+                 src={activeImage} 
+                 alt="Contact" 
+                 className="w-full h-full object-contain bg-black/5" 
+               />
+             ) : (
+               <div className="flex flex-col items-center text-gray-400">
+                 <ImageIcon size={48} className="mb-2 opacity-50" />
+                 <span className="text-xs font-medium">No Photo</span>
+               </div>
+             )}
+
+             {/* Photo Actions Overlay */}
+             <div className="absolute bottom-4 right-4 flex gap-2">
+                <button 
+                  onClick={handleSyncPhoto}
+                  disabled={isSyncing}
+                  className="bg-white/90 hover:bg-white text-blue-600 text-xs font-semibold px-3 py-2 rounded-lg shadow-sm border border-gray-200 backdrop-blur-sm flex items-center gap-2 active:scale-95 transition-all"
+                >
+                  {isSyncing ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+                  Sync from Web
+                </button>
              </div>
            </div>
-        )}
+           {activeImage && (
+              <p className="text-[10px] text-center mt-1 text-gray-400">
+                {scannedImage === activeImage ? "Original Scanned Card" : "Synced Profile Photo"}
+              </p>
+           )}
+        </div>
 
         <form className="space-y-4" onSubmit={handleSubmit}>
           
