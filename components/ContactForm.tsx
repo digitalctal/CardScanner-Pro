@@ -16,7 +16,7 @@ const ContactForm: React.FC<ContactFormProps> = ({ initialData, scannedImage, on
   const [isSyncing, setIsSyncing] = useState(false);
 
   useEffect(() => {
-    // If a new scan comes in via props (though usually this component mounts with it), ensure it's set
+    // If a new scan comes in via props, ensure it's set
     if (scannedImage) {
       setActiveImage(scannedImage);
     }
@@ -26,25 +26,15 @@ const ContactForm: React.FC<ContactFormProps> = ({ initialData, scannedImage, on
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleSyncPhoto = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    
-    if (!formData.email) {
-      if (formData.phone) {
-         alert("Photo sync currently works with Email addresses (Gravatar/Web profiles). WhatsApp profile pictures cannot be accessed publicly.");
-         return;
-      }
-      alert("Please enter an email address to search for a profile photo.");
-      return;
-    }
-
+  const fetchAvatar = async (email: string) => {
+    if (!email) return;
     setIsSyncing(true);
     try {
       // unavatar.io aggregates Gravatar, Clearbit, etc.
-      const response = await fetch(`https://unavatar.io/${formData.email}?fallback=false`);
+      const response = await fetch(`https://unavatar.io/${email}?fallback=false`);
       
       if (!response.ok) {
-        throw new Error("No public profile photo found for this email.");
+        throw new Error("No public profile photo found");
       }
 
       const blob = await response.blob();
@@ -55,7 +45,33 @@ const ContactForm: React.FC<ContactFormProps> = ({ initialData, scannedImage, on
       };
       reader.readAsDataURL(blob);
     } catch (error) {
-      alert("Could not find a public profile photo for this email. Try adding a different email.");
+      // Silent fail on auto-fetch, specific alert on manual click
+      console.log("Could not auto-fetch avatar");
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const handleEmailBlur = () => {
+    // Auto-fetch if no image is currently set and we have an email
+    if (!activeImage && formData.email) {
+      fetchAvatar(formData.email);
+    }
+  };
+
+  const handleSyncPhoto = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!formData.email) {
+      alert("Please enter an email address to search for a profile photo.");
+      return;
+    }
+    
+    // Manual click gives feedback
+    setIsSyncing(true);
+    try {
+       await fetchAvatar(formData.email);
+    } catch(e) {
+       alert("Could not find a public profile photo for this email.");
     } finally {
       setIsSyncing(false);
     }
@@ -113,6 +129,7 @@ const ContactForm: React.FC<ContactFormProps> = ({ initialData, scannedImage, on
                <div className="flex flex-col items-center text-gray-400">
                  <ImageIcon size={48} className="mb-2 opacity-50" />
                  <span className="text-xs font-medium">No Photo</span>
+                 <span className="text-[10px] text-gray-400 mt-1">Add email to auto-sync</span>
                </div>
              )}
 
@@ -190,6 +207,7 @@ const ContactForm: React.FC<ContactFormProps> = ({ initialData, scannedImage, on
                 placeholder="Email Address"
                 value={formData.email || ''}
                 onChange={(e) => handleChange('email', e.target.value)}
+                onBlur={handleEmailBlur} // Trigger auto-fetch on blur
                 className="w-full bg-transparent outline-none text-gray-800 placeholder-gray-400"
               />
             </div>

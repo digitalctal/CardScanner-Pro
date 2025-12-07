@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Search, User, ChevronRight, Phone, Mail, Trash2, Download, UserPlus, MapPin, MessageCircle, Share2, Image as ImageIcon } from 'lucide-react';
+import { Search, User, Phone, Mail, Trash2, Download, UserPlus, MapPin, MessageCircle, Share2, Image as ImageIcon } from 'lucide-react';
 import { Contact, BeforeInstallPromptEvent } from '../types';
 
 interface ContactListProps {
@@ -33,7 +33,6 @@ const ContactList: React.FC<ContactListProps> = ({ contacts, onSelect, onDelete 
 
   const handleWhatsApp = (e: React.MouseEvent, phone: string) => {
     e.stopPropagation();
-    // Remove all non-numeric characters for the API
     const cleanNumber = phone.replace(/[^\d+]/g, '');
     window.open(`https://wa.me/${cleanNumber}`, '_blank');
   };
@@ -50,7 +49,6 @@ const ContactList: React.FC<ContactListProps> = ({ contacts, onSelect, onDelete 
       if (navigator.share) {
         await navigator.share(shareData);
       } else {
-        // Fallback for desktop/unsupported browsers
         await navigator.clipboard.writeText(shareData.text);
         alert('Contact details copied to clipboard!');
       }
@@ -62,7 +60,7 @@ const ContactList: React.FC<ContactListProps> = ({ contacts, onSelect, onDelete 
   const handleDownloadImage = (e: React.MouseEvent, contact: Contact) => {
     e.stopPropagation();
     if (!contact.photoData) {
-      alert("No card image available for this contact.");
+      alert("No saved card image available for this contact.");
       return;
     }
 
@@ -78,14 +76,12 @@ const ContactList: React.FC<ContactListProps> = ({ contacts, onSelect, onDelete 
     e.stopPropagation();
     
     let photoBlock = '';
+    // Priority: Saved Data -> Web Data (we can't easily export web data to VCF without downloading it first, so we prioritize saved)
     if (contact.photoData) {
-      // Remove the Data URL prefix to get raw Base64
       const base64Clean = contact.photoData.replace(/^data:image\/[a-z]+;base64,/, "");
-      // VCard 3.0 Standard for Photos
       photoBlock = `PHOTO;ENCODING=b;TYPE=JPEG:${base64Clean}\n`;
     }
 
-    // Create VCF string
     const vcard = `BEGIN:VCARD
 VERSION:3.0
 FN:${contact.name}
@@ -98,10 +94,8 @@ ADR;TYPE=WORK:;;${contact.address};;;;
 NOTE:${contact.notes}
 ${photoBlock}END:VCARD`;
 
-    // Attempt to use the Native Share API for files (works best on Mobile for importing contacts)
     try {
       const file = new File([vcard], `${contact.name.replace(/\s+/g, '_')}.vcf`, { type: 'text/vcard' });
-      
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
         await navigator.share({
           files: [file],
@@ -111,10 +105,9 @@ ${photoBlock}END:VCARD`;
         return;
       }
     } catch (err) {
-      console.log("Native file share not supported or failed, falling back to download", err);
+      console.log("Native file share not supported", err);
     }
 
-    // Fallback: Direct Download
     const blob = new Blob([vcard], { type: 'text/vcard' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -168,106 +161,138 @@ ${photoBlock}END:VCARD`;
             <p>No contacts found</p>
           </div>
         ) : (
-          <div className="space-y-3">
-            {filteredContacts.map(contact => (
-              <div 
-                key={contact.id} 
-                className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 active:bg-gray-50 transition-colors group"
-                onClick={() => onSelect(contact)}
-              >
-                 <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-gray-800 text-lg">{contact.name}</h3>
-                      <p className="text-sm text-gray-500 font-medium">{contact.jobTitle} {contact.company && `• ${contact.company}`}</p>
-                    </div>
-                    <ChevronRight size={20} className="text-gray-300" />
-                 </div>
+          <div className="grid grid-cols-1 gap-4">
+            {filteredContacts.map(contact => {
+              // Logic: Use saved photo -> Use Web Avatar (Email) -> Use Placeholder
+              const avatarSource = contact.photoData 
+                ? contact.photoData 
+                : contact.email 
+                  ? `https://unavatar.io/${contact.email}` 
+                  : null;
 
-                 {/* Quick Actions - Wrapped to handle multiple buttons */}
-                 <div className="flex flex-wrap items-center gap-2 mt-4 pt-3 border-t border-gray-50">
-                    {/* Primary Actions (Expanded) */}
-                    {contact.phone && (
-                      <a 
-                        href={`tel:${contact.phone}`} 
-                        onClick={e => e.stopPropagation()} 
-                        className="flex-1 py-2 bg-green-50 text-green-700 rounded-lg flex items-center justify-center gap-2 text-sm font-medium hover:bg-green-100 transition-colors min-w-[80px]"
-                      >
-                         <Phone size={16} /> Call
-                      </a>
-                    )}
-                    
-                    {contact.email && (
-                      <a 
-                        href={`mailto:${contact.email}`} 
-                        onClick={e => e.stopPropagation()} 
-                        className="flex-1 py-2 bg-blue-50 text-blue-700 rounded-lg flex items-center justify-center gap-2 text-sm font-medium hover:bg-blue-100 transition-colors min-w-[80px]"
-                      >
-                         <Mail size={16} /> Email
-                      </a>
-                    )}
-
-                    {/* Secondary Icon Actions */}
-                    <div className="flex items-center gap-2 ml-auto">
-                      {contact.phone && (
-                        <button
-                          onClick={(e) => handleWhatsApp(e, contact.phone)}
-                          className="p-2 bg-green-100 text-green-600 rounded-lg hover:bg-green-200"
-                          title="WhatsApp"
-                        >
-                          <MessageCircle size={18} />
-                        </button>
-                      )}
-
-                      {contact.address && (
-                         <a 
-                           href={`https://maps.google.com/?q=${encodeURIComponent(contact.address)}`}
-                           target="_blank"
-                           rel="noopener noreferrer"
-                           onClick={e => e.stopPropagation()} 
-                           className="p-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200"
-                           title="Open Map"
-                         >
-                            <MapPin size={18} />
-                         </a>
-                      )}
+              return (
+                <div 
+                  key={contact.id} 
+                  className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden active:bg-gray-50 transition-colors group relative"
+                  onClick={() => onSelect(contact)}
+                >
+                   {/* Top Middle Avatar Section */}
+                   <div className="pt-6 pb-2 flex flex-col items-center justify-center relative">
+                      <div className="w-20 h-20 rounded-full bg-gray-100 ring-4 ring-white shadow-md flex items-center justify-center overflow-hidden mb-3 relative z-10">
+                        {avatarSource ? (
+                          <img 
+                            src={avatarSource} 
+                            alt={contact.name}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              // If unavatar fails, fallback to icon
+                              e.currentTarget.style.display = 'none'; 
+                              e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                            }}
+                          />
+                        ) : null}
+                        {/* Fallback Icon (hidden if image loads successfully) */}
+                        <div className={`flex items-center justify-center w-full h-full text-gray-400 bg-gray-200 ${avatarSource ? 'hidden' : ''}`}>
+                          <User size={32} />
+                        </div>
+                      </div>
                       
-                      {contact.photoData && (
+                      <div className="text-center px-4 w-full">
+                        <h3 className="font-bold text-gray-800 text-lg truncate">{contact.name}</h3>
+                        <p className="text-sm text-gray-500 font-medium truncate">{contact.jobTitle}</p>
+                        {contact.company && <p className="text-xs text-blue-600 font-medium mt-0.5 truncate">{contact.company}</p>}
+                      </div>
+                   </div>
+
+                   {/* Action Bar */}
+                   <div className="px-4 pb-4 mt-2">
+                     <div className="flex items-center justify-center gap-3 pt-4 border-t border-gray-50">
+                        {/* Quick Primary Actions */}
+                        {contact.phone && (
+                          <a 
+                            href={`tel:${contact.phone}`} 
+                            onClick={e => e.stopPropagation()} 
+                            className="w-10 h-10 rounded-full bg-green-50 text-green-600 flex items-center justify-center hover:bg-green-100 transition-colors"
+                            title="Call"
+                          >
+                             <Phone size={18} /> 
+                          </a>
+                        )}
+                        {contact.phone && (
+                            <button
+                              onClick={(e) => handleWhatsApp(e, contact.phone)}
+                              className="w-10 h-10 rounded-full bg-green-100 text-green-700 flex items-center justify-center hover:bg-green-200"
+                              title="WhatsApp"
+                            >
+                              <MessageCircle size={18} />
+                            </button>
+                        )}
+                        
+                        {contact.email && (
+                          <a 
+                            href={`mailto:${contact.email}`} 
+                            onClick={e => e.stopPropagation()} 
+                            className="w-10 h-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center hover:bg-blue-100 transition-colors"
+                            title="Email"
+                          >
+                             <Mail size={18} /> 
+                          </a>
+                        )}
+
+                        {contact.address && (
+                          <a 
+                            href={`https://maps.google.com/?q=${encodeURIComponent(contact.address)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={e => e.stopPropagation()} 
+                            className="w-10 h-10 rounded-full bg-orange-50 text-orange-600 flex items-center justify-center hover:bg-orange-100"
+                            title="Map"
+                          >
+                              <MapPin size={18} />
+                          </a>
+                        )}
+
+                        <div className="w-px h-6 bg-gray-200 mx-1"></div>
+
+                        {/* Secondary Actions */}
                         <button 
-                          onClick={(e) => handleDownloadImage(e, contact)}
-                          className="p-2 bg-purple-50 text-purple-600 rounded-lg hover:bg-purple-100"
-                          title="Download Card Image"
+                          onClick={(e) => handleExportVcf(e, contact)}
+                          className="w-8 h-8 text-gray-400 hover:text-indigo-600 flex items-center justify-center"
+                          title="Sync to Contacts"
                         >
-                          <ImageIcon size={18} />
+                          <UserPlus size={18} />
                         </button>
-                      )}
+                        
+                        <button 
+                          onClick={(e) => handleShare(e, contact)}
+                          className="w-8 h-8 text-gray-400 hover:text-orange-600 flex items-center justify-center"
+                          title="Share"
+                        >
+                          <Share2 size={18} />
+                        </button>
 
-                      <button 
-                        onClick={(e) => handleShare(e, contact)}
-                        className="p-2 bg-orange-50 text-orange-600 rounded-lg hover:bg-orange-100"
-                        title="Share Contact"
-                      >
-                        <Share2 size={18} />
-                      </button>
+                         {contact.photoData && (
+                          <button 
+                            onClick={(e) => handleDownloadImage(e, contact)}
+                            className="w-8 h-8 text-gray-400 hover:text-purple-600 flex items-center justify-center"
+                            title="Download Scan"
+                          >
+                            <ImageIcon size={18} />
+                          </button>
+                        )}
 
-                      <button 
-                        onClick={(e) => handleExportVcf(e, contact)}
-                        className="p-2 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100"
-                        title="Sync to Phone Contacts"
-                      >
-                        <UserPlus size={18} />
-                      </button>
-                      
-                      <button 
-                        onClick={(e) => { e.stopPropagation(); onDelete(contact.id); }}
-                        className="p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg"
-                        title="Delete"
-                      >
-                        <Trash2 size={18} />
-                      </button>
-                    </div>
-                 </div>
-              </div>
-            ))}
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); onDelete(contact.id); }}
+                          className="w-8 h-8 text-gray-400 hover:text-red-500 flex items-center justify-center"
+                          title="Delete"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                     </div>
+                   </div>
+                </div>
+              );
+            })}
           </div>
         )}
         <div className="h-20"></div> {/* Spacer for bottom nav */}
