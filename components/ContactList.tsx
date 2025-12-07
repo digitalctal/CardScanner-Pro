@@ -1,5 +1,6 @@
+
 import React, { useState, useMemo, useEffect } from 'react';
-import { Search, User, Phone, Mail, Trash2, Download, UserPlus, MessageCircle, Image as ImageIcon, QrCode, X, Sun, Moon, Share2 } from 'lucide-react';
+import { Search, User, Phone, Mail, Trash2, Download, UserPlus, MessageCircle, Image as ImageIcon, QrCode, X, Sun, Moon, Share2, Settings as SettingsIcon, LayoutGrid, List as ListIcon } from 'lucide-react';
 import QRCode from 'qrcode';
 import { Contact, BeforeInstallPromptEvent } from '../types';
 import { generateVCardString } from '../services/vcardService';
@@ -10,10 +11,12 @@ interface ContactListProps {
   onDelete: (id: string) => void;
   theme: 'light' | 'dark';
   onToggleTheme: () => void;
+  onOpenSettings: () => void;
 }
 
-const ContactList: React.FC<ContactListProps> = ({ contacts, onSelect, onDelete, theme, onToggleTheme }) => {
+const ContactList: React.FC<ContactListProps> = ({ contacts, onSelect, onDelete, theme, onToggleTheme, onOpenSettings }) => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [qrModalContact, setQrModalContact] = useState<Contact | null>(null);
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
@@ -67,7 +70,6 @@ const ContactList: React.FC<ContactListProps> = ({ contacts, onSelect, onDelete,
     try {
       const file = new File([vcard], fileName, { type: 'text/vcard' });
       
-      // 1. Try sharing File (VCF)
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
         await navigator.share({
           files: [file],
@@ -77,7 +79,6 @@ const ContactList: React.FC<ContactListProps> = ({ contacts, onSelect, onDelete,
         return;
       }
       
-      // 2. Fallback to Text Share
       if (navigator.share) {
         await navigator.share({
           title: contact.name,
@@ -144,11 +145,29 @@ const ContactList: React.FC<ContactListProps> = ({ contacts, onSelect, onDelete,
                 Install
               </button>
             )}
+            
+            {/* View Toggle */}
+            <button
+               onClick={() => setViewMode(prev => prev === 'list' ? 'grid' : 'list')}
+               className="w-9 h-9 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 active:scale-95 transition-all"
+            >
+              {viewMode === 'list' ? <LayoutGrid size={18} /> : <ListIcon size={18} />}
+            </button>
+
+            {/* Theme Toggle */}
             <button 
               onClick={onToggleTheme}
               className="w-9 h-9 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 active:scale-95 transition-all"
             >
               {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
+            </button>
+
+            {/* Settings Button */}
+            <button 
+              onClick={onOpenSettings}
+              className="w-9 h-9 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 active:scale-95 transition-all"
+            >
+              <SettingsIcon size={18} />
             </button>
           </div>
         </div>
@@ -172,7 +191,7 @@ const ContactList: React.FC<ContactListProps> = ({ contacts, onSelect, onDelete,
             <p>No contacts found</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-4">
+          <div className={`${viewMode === 'grid' ? 'grid grid-cols-2 gap-3' : 'grid grid-cols-1 gap-4'}`}>
             {filteredContacts.map(contact => {
               const avatarSource = contact.photoData 
                 ? contact.photoData 
@@ -183,6 +202,50 @@ const ContactList: React.FC<ContactListProps> = ({ contacts, onSelect, onDelete,
               const cardBg = contact.color || '#ffffff';
               const isWhite = cardBg.toLowerCase() === '#ffffff';
 
+              if (viewMode === 'grid') {
+                // --- GRID VIEW CARD ---
+                return (
+                  <div 
+                    key={contact.id}
+                    onClick={() => onSelect(contact)}
+                    className={`rounded-xl p-3 shadow-sm border active:scale-[0.98] transition-all relative flex flex-col items-center justify-between min-h-[160px] ${
+                      isWhite ? 'bg-white dark:bg-gray-900 border-gray-100 dark:border-gray-800' : 'border-transparent'
+                    }`}
+                    style={{ backgroundColor: isWhite ? undefined : cardBg }}
+                  >
+                    <div className="flex flex-col items-center w-full">
+                       <div className={`w-14 h-14 rounded-full flex items-center justify-center overflow-hidden mb-2 shadow-sm ${
+                          isWhite ? 'bg-gray-50 dark:bg-gray-800' : 'bg-white/40'
+                        }`}>
+                          {avatarSource ? (
+                            <img src={avatarSource} className="w-full h-full object-cover" />
+                          ) : (
+                            <User size={20} className={isWhite ? 'text-gray-400' : 'text-gray-600'} />
+                          )}
+                       </div>
+                       <h3 className={`font-bold text-sm text-center line-clamp-1 ${isWhite ? 'text-gray-800 dark:text-white' : 'text-gray-900'}`}>
+                         {contact.name}
+                       </h3>
+                       <p className={`text-xs text-center line-clamp-1 mb-1 ${isWhite ? 'text-gray-500' : 'text-gray-700/80'}`}>
+                         {contact.company || contact.jobTitle}
+                       </p>
+                    </div>
+                    
+                    <div className="flex justify-center gap-2 mt-2 w-full pt-2 border-t border-black/5 dark:border-white/5">
+                       {contact.phone && (
+                         <button onClick={(e) => { e.stopPropagation(); window.location.href = `tel:${contact.phone}`}} className={`p-1.5 rounded-full ${isWhite ? 'bg-green-50 dark:bg-green-900/20 text-green-600' : 'bg-white/50 text-green-700'}`}>
+                           <Phone size={14} />
+                         </button>
+                       )}
+                       <button onClick={(e) => handleShowQR(e, contact)} className={`p-1.5 rounded-full ${isWhite ? 'bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400' : 'bg-white/50 text-black'}`}>
+                         <QrCode size={14} />
+                       </button>
+                    </div>
+                  </div>
+                );
+              }
+
+              // --- LIST VIEW CARD (Original) ---
               return (
                 <div 
                   key={contact.id} 

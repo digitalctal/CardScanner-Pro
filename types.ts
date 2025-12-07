@@ -1,3 +1,4 @@
+
 export interface Contact {
   id: string;
   name: string;
@@ -20,7 +21,8 @@ export enum AppView {
   CAMERA = 'CAMERA',
   EDIT = 'EDIT',
   DETAILS = 'DETAILS',
-  AI_ASSISTANT = 'AI_ASSISTANT'
+  AI_ASSISTANT = 'AI_ASSISTANT',
+  SETTINGS = 'SETTINGS'
 }
 
 // PWA Install Prompt Type definition

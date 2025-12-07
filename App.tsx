@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Plus, Users, Sparkles, ScanLine } from 'lucide-react';
 import { AppView, Contact } from './types';
@@ -5,6 +6,7 @@ import CameraCapture from './components/CameraCapture';
 import ContactForm from './components/ContactForm';
 import ContactList from './components/ContactList';
 import AiAssistant from './components/AiAssistant';
+import Settings from './components/Settings';
 import { extractContactInfo } from './services/geminiService';
 import { getContacts, saveContact, deleteContact } from './services/storageService';
 import { parseVCardString } from './services/vcardService';
@@ -128,11 +130,16 @@ const App: React.FC = () => {
               onDelete={handleDeleteContact}
               theme={theme}
               onToggleTheme={toggleTheme}
+              onOpenSettings={() => setView(AppView.SETTINGS)}
             />
         )}
 
         {view === AppView.AI_ASSISTANT && (
           <AiAssistant contacts={contacts} />
+        )}
+
+        {view === AppView.SETTINGS && (
+          <Settings onBack={() => setView(AppView.LIST)} />
         )}
 
         {view === AppView.CAMERA && (
